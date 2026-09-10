@@ -1,0 +1,10 @@
+services:
+  bendan:
+    build: .
+    container_name: bendan
+    restart: unless-stopped
+    environment:
+      ONEBOT_WS_URL: ${ONEBOT_WS_URL:-ws://host.docker.internal:3001}
+      ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN:?Set ONEBOT_ACCESS_TOKEN in .env}
+    extra_hosts:
+      - host.docker.internal:host-gateway

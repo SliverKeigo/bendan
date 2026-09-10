@@ -1,75 +1,76 @@
 # Bendan Bot
 
-一个 Telegram 的 [@bendan_bot](https://t.me/bendan_bot)
+基于 Go、QQNT、NapCatQQ 和 OneBot v11 的 QQ 机器人。
 
 ## 功能
 
-目前包含以下指令或功能：
+- 对消息发送 `/动作`。如 `/吃`，机器人发送 `A 吃了 B！`
+- 对消息发送 `/动作 结果`。如 `/吃 豆腐`，机器人发送 `A 吃 B 豆腐！`
+- 发送 `/me 内容`。如 `/me 喝醉了`，机器人发送 `A 喝醉了！`
+- 发送 `//whoami`，查询当前 QQ 号和会话 ID
+- 发送 `/没关系` 或 `/没事的`，获得一条鼓励回复
+- 自动识别并净化带跟踪参数的 URL
+- 发送 `？`，机器人回复一个问号
+- 发送 `看看…`、`是…吗`、`有没有…`、`能不能…` 等句式，机器人半随机回应
+- 发送 `//go` 或 `//js` 后跟代码，执行 Go 或 JavaScript
+- 回复机器人说“别说话”“闭嘴”或“安静”会使它在该会话中静默 30 分钟；回复“说话”恢复
 
-- 对消息回复 `/*`。如 `/吃`，Bot 发送一个 `a 吃了 b ！`
-- 对消息回复 `/* *`。如 `/吃 豆腐`，Bot 发送一个 `a 吃 b 豆腐！`
-- 直接发送或回复 `/me *`。如 `/me 喝醉了`，Bot 发送一个 `a 喝醉了！`
-- 对消息回复 `//pin`，Bot 将消息置顶（若有权限），最多保留 10 条由 Bot 置顶的消息
-- 直接发送或回复 `//whoami`，Bot 发送指令调用者 ID、当前群组 ID
-- 直接发送或回复 `/没关系`、`/没事的`，生存鼓励师猫猫发送一条“没关系……”句子
-- 识别具有跟踪参数的 URL，并自动净化它们
-- 直接发送或回复 `？`，Bot 回复一个 `？`
-- 直接发送或回复 `看看…`，Bot 半随机地回复一个内容
-- 直接发送或回复 `是…吗`、`有…吗`、`是…还是…`、`有…还是…`，Bot 半随机地回复一个内容
-- 直接发送或回复 `是不是…`、`有没有…`、`会不会…`、`能不能…`、`…行不行`、`这么有…`，Bot 半随机地回复一个内容
-- 直接发送或回复 `//lang code` 执行代码（可多行），目前支持 Go、JavaScript，如 `//js Math.sin(45)`
-- 转发 Telegram channel 消息到 Twitter、Mastodon
+以下 Telegram 专属能力已经移除：Inline Query、频道自动转发、Telegram 消息编辑、Telegram DC 查询和 Vercel Webhook 部署。
 
-## 部署到 Vercel
+## 架构
 
-你可以 Fork 本仓库，然后一键部署到 Vercel。需要在 Vercel ENV 中配置如下变量：
+```text
+QQNT + NapCatQQ
+      | OneBot v11 正向 WebSocket
+      v
+Bendan Bot (Go)
+```
 
-- `BOT_TOKEN`：Telegram Bot 的 Token
-- `REFRESH_KEY`：用于第一次触发 Webhook 配置的密钥
-- `DB_URI`：（可选）MongoDB 的连接 URI。用于置顶、转发功能，不需要这些功能则不配置
-- `DB_NAME`：（可选）MongoDB 的数据库名称。同上，可不配置
-- `FORWARD_CONFIG`：（可选）转发功能配置，JSON 字符串，具体字段见 [部署到 Server](#部署到-Server)。无需该功能则不配置
+本服务使用 OneBot v11 **正向 WebSocket**：Bendan 主动连接 NapCat 提供的 WebSocket 服务端。NapCat 的 OneBot 配置需要启用正向 WebSocket，并允许本服务连接。
 
-设置完成后，访问 `https://your-domain.vercel.app/?key=<refresh_key>` 对 Webhook 初始化即可。
+## 配置
 
-## 部署到 Server
-
-您需要做的是，在根目录创建 `.config` 文件，并做如下配置：
+服务会优先读取环境变量；也可在项目根目录创建未纳入 Git 的 `.config`：
 
 ```json
 {
-  "bot_token": "...",
-  "refresh_key": "secret",
-  "db_uri": "mongodb+srv://...",
-  "db_name": "bendan",
-  "forward_config": {
-    "group": {
-      "id": "channel 关联群组 ID，可通过 //whoami 指令查询",
-      "owner": "群组所有者 ID，用于后续转发交互鉴权"
-    },
-    "twitter": {
-      "consumer_key": "Twitter 应用ID，在 developer.twitter.com 创建应用",
-      "consumer_secret": "Twitter 应用密钥，同上",
-      "user_token": "对应 Twitter 用户的 Access Token，单用户可在 developer.twitter.com 生成，或多用户基于应用的 OAuth1 授权",
-      "user_secret": "user_token 对应的 secret"
-    },
-    "mastodon": {
-      "endpoint": "如 https://mastodon.social",
-      "token": "Preferences - Development 中创建应用得到"
-    },
-    "allowed_tags": ["随原文一起转发的 tag"]
-  }
+  "onebot_ws_url": "ws://127.0.0.1:3001",
+  "onebot_access_token": "replace-with-a-long-random-token"
 }
 ```
 
-以上参数同 [部署到 Vercel](#部署到-vercel)，配置完成后直接运行主程序即可。
+| 配置项 | 必填 | 说明 |
+| --- | --- | --- |
+| `ONEBOT_WS_URL` / `onebot_ws_url` | 是 | NapCat OneBot v11 反向 WebSocket 地址，例如 `ws://127.0.0.1:3001` |
+| `ONEBOT_ACCESS_TOKEN` / `onebot_access_token` | 建议 | 与 NapCat WebSocket Access Token 一致；生产环境必须设置 |
 
-## 隐私
+## 本地运行
 
-受 Telegram Bot API 限制，无法获取所有已置顶消息，以用于“仅保留 10 条置顶”功能。
+前提：QQNT 和 NapCatQQ 已在同一台主机上运行并登录目标 QQ 账号，且 OneBot v11 的反向 WebSocket 服务已开启。
 
-因此需要将由 Bot 置顶的消息存储下来，但也仅存储了 `(置顶消息ID, 群组ID, 置顶时间)` 用于取消老的消息置顶，该 Bot **_不会存储任何与消息内容有关的信息_**。
+```sh
+go run .
+```
+
+首次部署先在 NapCat WebUI 确认：
+
+1. OneBot v11 正向 WebSocket 服务已启用，地址与 `ONEBOT_WS_URL` 一致。
+2. 配置了 Access Token，并与 Bendan 一致。
+3. Bot QQ 账号在目标群中具备所需的发言和撤回权限。
+4. 用另一个账号向群发送 `//whoami`，确认机器人返回 QQ 与会话 ID。
+
+## 开发验证
+
+```sh
+go test ./...
+```
+
+`commands/eval` 的两项旧测试锁定了历史 Go 伪随机数输出；在 Go 1.25 上会因运行时随机数实现变化而失败，不影响 OneBot 接入与其余测试包。
+
+## 风险
+
+NapCatQQ/QQNT 是个人 QQ 自动化方案，不是 QQ 开放平台机器人。QQ 客户端升级、登录校验和风控均可能影响可用性；请使用专门的机器人账号，避免将主账号用于自动化。
 
 ## License
 
-Bendan Bot is licensed under the [MIT License](https://github.com/sxyazi/bendan/blob/master/LICENSE).
+Bendan Bot is licensed under the [MIT License](LICENSE).
