@@ -61,3 +61,32 @@ func TestEventRejectsNonMessageEvents(t *testing.T) {
 		t.Fatal("expected nil for non-message event")
 	}
 }
+
+func TestEventUsesTextSegmentsWhenReplyAddsAnAtMention(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"post_type":"message",
+		"message_type":"group",
+		"self_id":422345383,
+		"message_id":67890,
+		"user_id":1226355793,
+		"group_id":744196849,
+		"raw_message":"[CQ:reply,id=123][CQ:at,qq=422345383] /摸",
+		"sender":{"user_id":1226355793,"nickname":"Keigo","card":""},
+		"message":[
+			{"type":"reply","data":{"id":"123"}},
+			{"type":"at","data":{"qq":"422345383"}},
+			{"type":"text","data":{"text":" /摸"}}
+		]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+
+	message := event.ToPlatformMessage()
+	if message == nil {
+		t.Fatal("expected message")
+	}
+	if message.Text != "/摸" {
+		t.Fatalf("text = %q, want command text without reply and mention segments", message.Text)
+	}
+}

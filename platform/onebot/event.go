@@ -29,7 +29,8 @@ type Event struct {
 
 // Message preserves text segments while tolerating NapCat's string or array wire format.
 type Message struct {
-	Text string
+	Text      string
+	Segmented bool
 }
 
 func (m *Message) UnmarshalJSON(data []byte) error {
@@ -49,13 +50,14 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("decode OneBot message: %w", err)
 	}
 
+	m.Segmented = true
 	var textBuilder strings.Builder
 	for _, segment := range segments {
 		if segment.Type == "text" {
 			textBuilder.WriteString(segment.Data.Text)
 		}
 	}
-	m.Text = textBuilder.String()
+	m.Text = strings.TrimSpace(textBuilder.String())
 	return nil
 }
 
@@ -86,9 +88,9 @@ func (e Event) ToPlatformMessage() *platform.Message {
 		chatKind = "group"
 	}
 
-	text := e.RawMessage
-	if text == "" {
-		text = e.Message.Text
+	text := e.Message.Text
+	if !e.Message.Segmented && text == "" {
+		text = e.RawMessage
 	}
 
 	return &platform.Message{
