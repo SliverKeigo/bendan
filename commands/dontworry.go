@@ -1,18 +1,16 @@
 package commands
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	collect "github.com/sxyazi/go-collection"
+	"github.com/sxyazi/bendan/platform"
 )
 
-// 部分句子来自某 Mastodon bot，作者不希望链接出现在象外，故不添加引用链接。
-// 感谢Ta的创意，及这些富有力量的文字！
 var seDontworry = []string{
 	"$0，努力过了，很厉害了",
 	"$0，努力假装是人类，很厉害了",
@@ -48,7 +46,6 @@ var seDontworry = []string{
 	"$0，下定决心躺平已经很厉害了",
 	"$0，没成功也尝试过了，很厉害了",
 	"$0，不努力也可以的，很厉害了",
-	"$0，不热爱生活也可以的，很厉害了",
 	"$0，做不到还在坚持，已经很厉害了",
 	"$0，有时间能玩游戏，很厉害了",
 	"$0，不要因为无法改变的事惩罚自己",
@@ -70,25 +67,26 @@ var seDontworry = []string{
 	"$0，对人性仍抱有期待，已经很厉害了",
 }
 
-func Dontworry(msg *tgbotapi.Message) bool {
-	var rep string
-	if collect.Contains([]string{"/没关系", "/没事的"}, msg.Text) {
-		rep = msg.Text[1:]
-	} else {
+func Dontworry(ctx context.Context, message *platform.Message) bool {
+	var reply string
+	switch message.Text {
+	case "/没关系", "/没事的":
+		reply = strings.TrimPrefix(message.Text, "/")
+	default:
 		return false
 	}
 
-	sel := func(userID int64) string {
-		_, min, _ := time.Now().Clock()
-		sum := sha1.Sum([]byte(fmt.Sprintf("%d %d", userID, min)))
-		idx := int(binary.BigEndian.Uint16(sum[:])) % len(seDontworry)
-		return strings.Replace(seDontworry[idx], "$0", rep, 1)
+	selectText := func(userID string) string {
+		_, minute, _ := time.Now().Clock()
+		sum := sha1.Sum([]byte(fmt.Sprintf("%s %d", userID, minute)))
+		index := int(binary.BigEndian.Uint16(sum[:])) % len(seDontworry)
+		return strings.Replace(seDontworry[index], "$0", reply, 1)
 	}
 
-	if msg.ReplyToMessage == nil {
-		SendText(msg.Chat.ID, sel(msg.From.ID))
+	if message.ReplyTo == nil {
+		sendText(ctx, message.Chat, selectText(message.Sender.ID))
 	} else {
-		ReplyText(msg.ReplyToMessage, sel(msg.ReplyToMessage.From.ID))
+		replyText(ctx, message.ReplyTo, selectText(message.ReplyTo.Sender.ID))
 	}
 	return true
 }

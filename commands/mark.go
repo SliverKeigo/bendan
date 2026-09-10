@@ -1,17 +1,18 @@
 package commands
 
 import (
+	"context"
 	"math/rand"
 	"regexp"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sxyazi/bendan/commands/yes"
+	"github.com/sxyazi/bendan/platform"
 )
 
 var reMark = regexp.MustCompile(`^[?？¿‽]+$`)
 
-func Mark(msg *tgbotapi.Message) bool {
-	if !reMark.MatchString(msg.Text) {
+func Mark(ctx context.Context, message *platform.Message) bool {
+	if !reMark.MatchString(message.Text) {
 		return false
 	}
 
@@ -19,12 +20,8 @@ func Mark(msg *tgbotapi.Message) bool {
 	if rand.Float64() > .9 {
 		text = []string{"啊？", "嗯？"}[rand.Intn(2)]
 	} else {
-		text = yesSel([2][]string{
-			{"?", "？", "¿"},
-			{msg.Text[:rand.Intn(len(msg.Text))+1]},
-		}, &yes.Token{Sub: msg.Text})
+		text = yesSel([2][]string{{"?", "？", "¿"}, {message.Text[:rand.Intn(len(message.Text))+1]}}, &yes.Token{Sub: message.Text})
 	}
-
-	ReplyText(msg, text)
+	replyText(ctx, message, text)
 	return true
 }

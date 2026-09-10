@@ -1,6 +1,7 @@
 package yes
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"regexp"
 	"strings"
@@ -45,6 +46,11 @@ func (t *Token) String() string {
 		return fmt.Sprintf("sub=%s, obj=%s", t.Sub, t.Obj)
 	}
 	return fmt.Sprintf("sub=%s, obj=%s, ind=%s", t.Sub, t.Obj, t.Ind)
+}
+
+// StableChoice produces the deterministic branch used for most responses.
+func StableChoice(t *Token) int {
+	return int(sha1.Sum([]byte(t.String()))[0] & 1)
 }
 
 func explode(s string) []string {

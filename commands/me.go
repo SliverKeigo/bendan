@@ -1,23 +1,22 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	. "github.com/sxyazi/bendan/utils"
+	"github.com/sxyazi/bendan/platform"
 )
 
-func Me(msg *tgbotapi.Message) bool {
-	if !strings.HasPrefix(msg.Text, "/me") {
+func Me(ctx context.Context, message *platform.Message) bool {
+	if !strings.HasPrefix(message.Text, "/me") {
 		return false
 	}
 
-	message := strings.TrimSpace(msg.Text[3:])
-	if message == "" {
+	text := strings.TrimSpace(message.Text[3:])
+	if text == "" {
 		return false
 	}
-
-	SendText(msg.Chat.ID, fmt.Sprintf("%s %s！", SenderName(msg), message))
+	sendText(ctx, message.Chat, fmt.Sprintf("%s %s！", senderName(message), text))
 	return true
 }

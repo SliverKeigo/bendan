@@ -1,14 +1,13 @@
 package commands
 
 import (
+	"context"
 	"net/url"
 	"strings"
 	"sync"
 
-	"github.com/google/uuid"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sxyazi/bendan/commands/purify"
+	"github.com/sxyazi/bendan/platform"
 	"github.com/sxyazi/bendan/utils"
 )
 
@@ -17,94 +16,57 @@ type purifyResult struct {
 	after  *url.URL
 }
 
-func purifyDo(s string) chan []*purifyResult {
-	urls := utils.ExtractUrls(s)
-	if len(urls) < 1 {
-		return nil
-	}
-
+func purifyDo(text string) <-chan []*purifyResult {
+	urls := utils.ExtractUrls(text)
 	todo := make([]*purifyResult, 0, len(urls))
-	for _, u := range urls {
-		if purify.Tracks.Test(u) {
-			todo = append(todo, &purifyResult{before: u})
+	for _, value := range urls {
+		if purify.Tracks.Test(value) {
+			todo = append(todo, &purifyResult{before: value})
 		}
 	}
-	if len(todo) < 1 {
+	if len(todo) == 0 {
 		return nil
 	}
 
-	ch := make(chan []*purifyResult, 1)
+	result := make(chan []*purifyResult, 1)
 	go func() {
-		wg := sync.WaitGroup{}
-		wg.Add(len(todo))
-		for _, r := range todo {
-			go func(r *purifyResult) {
-				defer wg.Done()
-				url := *r.before // Clone a new URL without modifying the original one
-				r.after = purify.Tracks.Do(&purify.Stage{URL: &url})
-			}(r)
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(len(todo))
+		for _, item := range todo {
+			go func(item *purifyResult) {
+				defer waitGroup.Done()
+				clone := *item.before
+				item.after = purify.Tracks.Do(&purify.Stage{URL: &clone})
+			}(item)
 		}
-
-		wg.Wait()
-		ch <- todo
+		waitGroup.Wait()
+		result <- todo
 	}()
-
-	return ch
+	return result
 }
 
-func Purify(msg *tgbotapi.Message) bool {
-	ch := purifyDo(msg.Text + "\n" + msg.Caption)
-	if ch == nil {
+// Purify replies with tracking-free URLs. OneBot has no inline-query equivalent.
+func Purify(ctx context.Context, message *platform.Message) bool {
+	result := purifyDo(message.Content())
+	if result == nil {
 		return false
-	}
-
-	sent := ReplyText(msg, "Purifying up the URLs...")
-	if sent == nil {
-		return true
 	}
 
 	var text strings.Builder
-	for _, r := range <-ch {
-		if r.after != nil {
-			text.WriteString(r.after.String())
+	for _, item := range <-result {
+		if item.after != nil {
+			text.WriteString(item.after.String())
 			text.WriteByte('\n')
 		}
 	}
-	if text.Len() < 1 {
-		DeleteMessage(sent)
-	} else if s := text.String(); strings.Count(s, "\n") == 1 {
-		EditText(sent, "<b>Purified URL:</b> "+s)
+	if text.Len() == 0 {
+		return false
+	}
+	urls := strings.TrimSpace(text.String())
+	if strings.Count(urls, "\n") == 0 {
+		replyText(ctx, message, "净化后的链接：\n"+urls)
 	} else {
-		EditText(sent, "<b>The URL(s) purified below:</b>\n\n"+s)
+		replyText(ctx, message, "净化后的链接：\n"+urls)
 	}
-	return true
-}
-
-func PurifyViaQuery(query *tgbotapi.InlineQuery) bool {
-	ch := purifyDo(query.Query)
-	if ch == nil {
-		return false
-	}
-
-	text := query.Query
-	for _, r := range <-ch {
-		if r.after != nil {
-			text = strings.Replace(text, r.before.String(), r.after.String(), 1)
-		}
-	}
-
-	if text == query.Query {
-		return false
-	}
-
-	result := tgbotapi.InlineQueryResultArticle{
-		Type:  "article",
-		ID:    uuid.New().String(),
-		Title: utils.TruncateUTF8(text, 64),
-		InputMessageContent: tgbotapi.InputTextMessageContent{
-			Text: text,
-		},
-	}
-	RespondInlineQuery(query.ID, result)
 	return true
 }

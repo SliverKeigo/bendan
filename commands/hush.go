@@ -1,49 +1,49 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/sxyazi/bendan/platform"
 )
 
 const hushDuration = 30 * time.Minute
 
-var hushDir = filepath.Join(os.TempDir(), "/bendan/hush")
+var hushDir = filepath.Join(os.TempDir(), "bendan", "hush")
 var reHush = regexp.MustCompile("别说话|闭嘴|安静")
 var reUnHush = regexp.MustCompile("说话")
 
 func init() {
 	if err := os.MkdirAll(hushDir, 0755); err != nil {
-		log.Println("Hush init failed:", err)
+		log.Printf("create hush directory: %v", err)
 	}
 }
 
-func Hush(msg *tgbotapi.Message) bool {
-	path := filepath.Join(hushDir, strconv.FormatInt(msg.Chat.ID, 10))
-	repliesToBot := msg.ReplyToMessage != nil && msg.ReplyToMessage.From.ID == Bot.Self.ID
+func Hush(ctx context.Context, message *platform.Message) bool {
+	path := filepath.Join(hushDir, message.Chat.ID)
+	repliesToBot := message.ReplyTo != nil && message.ReplyTo.Sender.ID == Bot.Identity().ID
 
-	if repliesToBot && reHush.MatchString(msg.Text) {
+	if repliesToBot && reHush.MatchString(message.Text) {
 		if err := os.WriteFile(path, nil, 0644); err == nil {
-			ReplyText(msg, "😭")
+			replyText(ctx, message, "😭")
 		} else {
-			log.Println("Hush failed:", err)
-			ReplyText(msg, "不要！")
+			log.Printf("hush: %v", err)
+			replyText(ctx, message, "不要！")
 		}
 		return true
 	}
 
-	if repliesToBot && reUnHush.MatchString(msg.Text) {
+	if repliesToBot && reUnHush.MatchString(message.Text) {
 		if err := os.Remove(path); err == nil || errors.Is(err, os.ErrNotExist) {
-			ReplyText(msg, "好耶！")
+			replyText(ctx, message, "好耶！")
 		} else {
-			log.Println("UnHush failed:", err)
-			ReplyText(msg, "不要！")
+			log.Printf("unhush: %v", err)
+			replyText(ctx, message, "不要！")
 		}
 		return true
 	}

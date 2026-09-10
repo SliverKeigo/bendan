@@ -20,4 +20,3 @@ func (*twitter) allowed(*url.URL) (string, uint8) {
 func (*twitter) handle(*Stage) *url.URL {
 	panic("not implemented")
 }
-

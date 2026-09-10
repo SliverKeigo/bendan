@@ -2,17 +2,19 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"regexp"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sxyazi/bendan/commands/eval"
+	"github.com/sxyazi/bendan/platform"
 )
 
 var reEval = regexp.MustCompile(`(?mi)^//\s*(go|golang|js|javascript|node|nodejs)[\s\n]+([\s\S]+)`)
 
-func Eval(msg *tgbotapi.Message) bool {
-	matches := reEval.FindStringSubmatch(msg.Text)
+// Eval executes Go or JavaScript after a double-slash command.
+func Eval(ctx context.Context, message *platform.Message) bool {
+	matches := reEval.FindStringSubmatch(message.Text)
 	if len(matches) < 3 {
 		return false
 	}
@@ -29,25 +31,15 @@ func Eval(msg *tgbotapi.Message) bool {
 		}
 	}()
 
-	sent := ReplyText(msg, "Evaluating...")
-	if sent == nil {
-		return true
-	}
-
-	var buf bytes.Buffer
-	for _, s := range <-result {
-		if s == "" {
-			continue
+	var output bytes.Buffer
+	for _, line := range <-result {
+		if line != "" {
+			output.WriteString(line)
 		}
-		buf.WriteString(`<code>`)
-		buf.WriteString(strings.ReplaceAll(s, "<", "&lt;"))
-		buf.WriteString(`</code>`)
 	}
-
-	if buf.Len() == 0 {
-		buf.WriteString("No output")
+	if output.Len() == 0 {
+		output.WriteString("No output")
 	}
-
-	EditText(sent, buf.String())
+	replyText(ctx, message, output.String())
 	return true
 }
