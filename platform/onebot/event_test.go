@@ -34,6 +34,28 @@ func TestEventToPlatformMessage(t *testing.T) {
 	}
 }
 
+func TestGetMessageResponseUsesNestedSenderID(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"message_id":123,
+		"message_type":"group",
+		"group_id":891343531,
+		"sender":{"user_id":422345383,"nickname":"Bendan"},
+		"message":[{"type":"text","data":{"text":"应该不是"}}]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+	event.PostType = "message"
+
+	message := event.ToPlatformMessage()
+	if message == nil {
+		t.Fatal("expected platform message")
+	}
+	if got, want := message.Sender.ID, "422345383"; got != want {
+		t.Fatalf("sender ID = %q, want %q from nested sender", got, want)
+	}
+}
+
 func TestEventToPlatformPrivateMessage(t *testing.T) {
 	var event Event
 	if err := json.Unmarshal([]byte(`{

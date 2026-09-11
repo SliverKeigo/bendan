@@ -100,7 +100,11 @@ func (e Event) ToPlatformMessage() *platform.Message {
 		return nil
 	}
 
-	chatID := e.UserID
+	userID := e.UserID
+	if userID == 0 {
+		userID = e.Sender.UserID
+	}
+	chatID := userID
 	chatName := e.Sender.Nickname
 	chatKind := "private"
 	if e.MessageType == "group" {
@@ -117,7 +121,7 @@ func (e Event) ToPlatformMessage() *platform.Message {
 	return &platform.Message{
 		ID:       fmt.Sprintf("%d", e.MessageID),
 		Chat:     platform.Chat{ID: fmt.Sprintf("%d", chatID), Name: chatName, Kind: chatKind},
-		Sender:   e.Sender.toPlatformUser(e.UserID),
+		Sender:   e.Sender.toPlatformUser(userID),
 		Text:     text,
 		Mentions: e.Message.Mentions,
 		ReplyTo:  e.replyMessage(),
