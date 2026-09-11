@@ -46,6 +46,13 @@ func actionTarget(message *platform.Message) string {
 	return targetOfInteraction(message)
 }
 
+func formatActionSentence(sender, display, target string) string {
+	if strings.Contains(display, "{target}") {
+		return fmt.Sprintf("%s %s！", sender, strings.ReplaceAll(display, "{target}", target))
+	}
+	return fmt.Sprintf("%s %s %s！", sender, display, target)
+}
+
 func Call(ctx context.Context, message *platform.Message) bool {
 	text := message.Text
 	hasSlash := strings.HasPrefix(text, "/")
@@ -67,12 +74,18 @@ func Call(ctx context.Context, message *platform.Message) bool {
 	var response string
 	switch len(params) {
 	case 1:
-		response = fmt.Sprintf("%s %s %s！", senderName(message), actionDisplay(params[0]), actionTarget(message))
+		response = formatActionSentence(senderName(message), actionDisplay(params[0]), actionTarget(message))
 	case 2:
 		if message.ReplyTo == nil || message.ReplyTo.Sender.ID == message.Sender.ID {
-			response = fmt.Sprintf("%s %s %s！", senderName(message), actionDisplay(params[0]), params[1])
+			response = formatActionSentence(senderName(message), actionDisplay(params[0]), params[1])
 		} else {
-			response = fmt.Sprintf("%s %s %s的%s！", senderName(message), actionDisplay(params[0]), targetOfInteraction(message), params[1])
+			target := targetOfInteraction(message)
+			display := actionDisplay(params[0])
+			if strings.Contains(display, "{target}") {
+				response = formatActionSentence(senderName(message), display, target+"的"+params[1])
+			} else {
+				response = fmt.Sprintf("%s %s %s的%s！", senderName(message), display, target, params[1])
+			}
 		}
 	default:
 		return false
