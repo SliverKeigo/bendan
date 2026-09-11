@@ -30,6 +30,8 @@ cp .env.example .env
 ```dotenv
 ONEBOT_WS_URL=ws://127.0.0.1:3001
 ONEBOT_ACCESS_TOKEN=replace-with-a-long-random-token
+ADMINISTRATOR_QQ=replace-with-your-qq-number
+ACTION_LEXICON_PATH=actions.json
 ```
 
 然后启动：
@@ -65,7 +67,7 @@ Bendan 会回复发送者 QQ 号与会话 ID。收到回应后，可继续测试
 预期输出类似：
 
 ```text
-发送者 摸了 对方！
+发送者 摸了摸 对方！
 ```
 
 下一步：[浏览全部功能](/guide/features) 或 [配置动作词表](/guide/actions)。

@@ -5,7 +5,7 @@
 正常启动时会输出：
 
 ```text
-starting Bendan onebot_ws_url="ws://127.0.0.1:3001" action_lexicon_path="actions.json" zh=33 latin=12
+starting Bendan onebot_ws_url="ws://127.0.0.1:3001" action_lexicon_path="actions.json" zh=46 latin=21
 onebot connected endpoint="ws://127.0.0.1:3001"
 ```
 
@@ -54,7 +54,7 @@ Bendan 会以递增退避间隔持续重连，NapCat 恢复后会自动重新建
 保存正确内容后最多等待一秒。日志会出现：
 
 ```text
-action lexicon reloaded path="..." zh=34 latin=12
+action lexicon reloaded path="..." zh=46 latin=21
 ```
 
 无效内容会产生 `action lexicon reload failed`，但旧词表仍会保留。
