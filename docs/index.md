@@ -32,7 +32,7 @@ Bendan 面向已经运行 QQNT 与 NapCatQQ 的环境。完成 OneBot 正向 Web
 ```text
 回复某人的消息后：摸
 
-发送者 摸了摸 对方！
+发送者 摸了摸对方！
 ```
 
 [查看完整上手流程](/guide/getting-started)
