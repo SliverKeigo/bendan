@@ -4,6 +4,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'Bendan',
   description: '基于 NapCatQQ 与 OneBot v11 的 QQ 机器人',
+  base: '/bendan/',
   cleanUrls: true,
   head: [
     ['meta', { name: 'theme-color', content: '#0b5d5e' }],
