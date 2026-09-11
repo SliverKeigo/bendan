@@ -287,6 +287,58 @@ func TestHandleWhoamiUsesQQIdentifiers(t *testing.T) {
 	}
 }
 
+func TestDefaultActionLexiconMappings(t *testing.T) {
+	if err := LoadActionLexicon("does-not-exist.json"); err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]string{
+		"摸":         "摸了摸",
+		"抱":         "抱了抱",
+		"拍":         "拍了拍",
+		"戳":         "戳了戳",
+		"亲":         "亲了亲",
+		"揉":         "揉了揉",
+		"捏":         "捏了捏",
+		"蹭":         "蹭了蹭",
+		"啵":         "啵了一口",
+		"举":         "举了举",
+		"举高高":       "举高高了",
+		"挥":         "挥了挥",
+		"拍肩":        "拍了拍",
+		"揉头":        "揉了揉",
+		"贴":         "贴了贴",
+		"拉":         "拉了拉",
+		"推":         "推了推",
+		"递":         "递给了",
+		"喂":         "喂了",
+		"塞":         "塞给了",
+		"比心":        "比了个心给",
+		"击掌":        "击了个掌",
+		"握手":        "握了握手",
+		"挠痒":        "挠了挠痒",
+		"pet":       "摸了摸",
+		"cuddle":    "抱了抱",
+		"wave":      "挥了挥",
+		"feed":      "喂了",
+		"headpat":   "摸了摸",
+		"hold":      "抱住了",
+		"squeeze":   "捏了捏",
+		"tickle":    "挠了挠痒",
+		"handshake": "握了握手",
+		"fistbump":  "碰了碰拳",
+		"highfive":  "击了个掌",
+	}
+	for action, display := range want {
+		if !isAction(action) {
+			t.Errorf("isAction(%q) = false", action)
+		}
+		if got := actionDisplay(action); got != display {
+			t.Errorf("actionDisplay(%q) = %q, want %q", action, got, display)
+		}
+	}
+}
+
 func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -295,49 +347,52 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 		replyTo  *platform.Message
 		want     string
 	}{
-		{name: "slash action only", text: "/摸", want: "Keigo 摸了 自己！"},
+		{name: "slash action only", text: "/摸", want: "Keigo 摸了摸 自己！"},
 		{name: "unlisted Chinese action", text: "/看看", want: ""},
 		{name: "bare action requires a result", text: "摸", want: ""},
 		{name: "emoji action only", text: "/🤔", want: "Keigo 🤔 自己！"},
 		{name: "completed action with result", text: "/喝了 自己", want: "Keigo 喝了 自己！"},
-		{name: "slash action with result", text: "/摸 智智", want: "Keigo 摸了 智智！"},
-		{name: "bare action with result", text: "摸 智智", want: "Keigo 摸了 智智！"},
+		{name: "slash action with result", text: "/摸 智智", want: "Keigo 摸了摸 智智！"},
+		{name: "bare action with result", text: "摸 智智", want: "Keigo 摸了摸 智智！"},
 		{name: "bare multi-character action with result", text: "抱抱 智智", want: "Keigo 抱了抱 智智！"},
+		{name: "new Chinese action", text: "握手 智智", want: "Keigo 握了握手 智智！"},
+		{name: "new Chinese compound action", text: "比心 智智", want: "Keigo 比了个心给 智智！"},
 		{name: "whitelisted English action", text: "rua 智智", want: "Keigo 揉了揉 智智！"},
 		{name: "slash whitelisted English action", text: "/rua 智智", want: "Keigo 揉了揉 智智！"},
-		{name: "English action ignores case", text: "Hug 智智", want: "Keigo 抱了 智智！"},
-		{name: "English action without slash", text: "highfive 智智", want: "Keigo 击了掌 智智！"},
+		{name: "English action ignores case", text: "Hug 智智", want: "Keigo 抱了抱 智智！"},
+		{name: "new English alias", text: "headpat 智智", want: "Keigo 摸了摸 智智！"},
+		{name: "English action without slash", text: "highfive 智智", want: "Keigo 击了个掌 智智！"},
 		{name: "unlisted English text", text: "recent 对吗？", want: ""},
 		{
 			name:    "action replying to another user without result",
 			text:    "摸",
 			replyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
-			want:    "Keigo 摸了 智智！",
+			want:    "Keigo 摸了摸 智智！",
 		},
 		{
 			name:     "action with mention uses reply name when mention omits it",
 			text:     "摸",
 			mentions: []platform.User{{ID: "2"}},
 			replyTo:  &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
-			want:     "Keigo 摸了 智智！",
+			want:     "Keigo 摸了摸 智智！",
 		},
 		{
 			name:     "action with bot mention target",
 			text:     "摸",
 			mentions: []platform.User{{ID: "99", DisplayName: "Bendan"}},
-			want:     "Keigo 摸了 Bendan！",
+			want:     "Keigo 摸了摸 Bendan！",
 		},
 		{
 			name:    "action with result replying to bot targets bot",
 			text:    "摸 头",
 			replyTo: &platform.Message{Sender: platform.User{ID: "99", DisplayName: "Bendan"}},
-			want:    "Keigo 摸了 Bendan的头！",
+			want:    "Keigo 摸了摸 Bendan的头！",
 		},
 		{
 			name:    "action with result replying to another user",
 			text:    "/摸 头",
 			replyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
-			want:    "Keigo 摸了 智智的头！",
+			want:    "Keigo 摸了摸 智智的头！",
 		},
 		{
 			name:    "repeated action with result replying to another user",
