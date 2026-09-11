@@ -7,6 +7,8 @@ services:
       ONEBOT_WS_URL: ${ONEBOT_WS_URL:-ws://host.docker.internal:3001}
       ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN:?Set ONEBOT_ACCESS_TOKEN in .env}
       ADMINISTRATOR_QQ: ${ADMINISTRATOR_QQ:?Set ADMINISTRATOR_QQ in .env}
+      BENDAN_DATABASE_URL: ${BENDAN_DATABASE_URL:-}
+      BENDAN_EVENT_HASH_SALT: ${BENDAN_EVENT_HASH_SALT:-}
       ACTION_LEXICON_PATH: /etc/bendan/actions.json
     volumes:
       - ./actions.json:/etc/bendan/actions.json

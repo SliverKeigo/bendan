@@ -10,6 +10,7 @@ import (
 
 	"github.com/sxyazi/bendan/commands"
 	"github.com/sxyazi/bendan/platform/onebot"
+	"github.com/sxyazi/bendan/storage/eventstore"
 	"github.com/sxyazi/bendan/utils"
 )
 
@@ -24,6 +25,21 @@ func main() {
 
 	bot := onebot.NewClient(endpoint, utils.Config("onebot_access_token"))
 	commands.Bot = bot
+
+	if databaseURL := utils.Config("bendan_database_url"); databaseURL != "" {
+		store, err := eventstore.New(ctx, databaseURL)
+		if err != nil {
+			log.Printf("automatic reply event storage disabled error=%v", err)
+		} else {
+			defer store.Close()
+			commands.SetAutomaticReplyRecorder(store, utils.Config("bendan_event_hash_salt"))
+			go store.Run(ctx)
+			log.Printf("automatic reply event storage enabled")
+		}
+	} else {
+		log.Printf("automatic reply event storage disabled reason=database_url_empty")
+	}
+
 	lexiconPath, _, zh, latin := commands.ActionLexiconStatus()
 	log.Printf("starting Bendan onebot_ws_url=%q action_lexicon_path=%q zh=%d latin=%d", endpoint, lexiconPath, zh, latin)
 	go commands.WatchActionLexicon(ctx, time.Second)

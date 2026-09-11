@@ -68,7 +68,8 @@ func Handle(ctx context.Context, message *platform.Message) {
 	ctx = context.WithValue(ctx, automaticReplyContextKey{}, true)
 	ctx = context.WithValue(ctx, automaticReplyMessageContextKey{}, message)
 	for _, handler := range automaticHandlers {
-		if handler.handle(ctx, message) {
+		handlerCtx := context.WithValue(ctx, automaticReplyHandlerContextKey{}, handler.name)
+		if handler.handle(handlerCtx, message) {
 			log.Printf("automatic reply handled sender=%q chat=%q handler=%s", message.Sender.ID, message.Chat.ID, handler.name)
 			return
 		}
@@ -137,6 +138,9 @@ func sendText(ctx context.Context, chat platform.Chat, text string) *platform.Me
 		log.Printf("send text: %v", err)
 		return nil
 	}
+	if input, automatic := ctx.Value(automaticReplyMessageContextKey{}).(*platform.Message); automatic {
+		recordAutomaticReply(ctx, input, text, "send")
+	}
 	return message
 }
 
@@ -154,6 +158,9 @@ func replyText(ctx context.Context, message *platform.Message, text string) *pla
 	if err != nil {
 		log.Printf("reply text: %v", err)
 		return nil
+	}
+	if input, automatic := ctx.Value(automaticReplyMessageContextKey{}).(*platform.Message); automatic {
+		recordAutomaticReply(ctx, input, text, "reply")
 	}
 	return sent
 }
