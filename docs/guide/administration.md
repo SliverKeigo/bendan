@@ -11,6 +11,7 @@ Bendan 使用 `ADMINISTRATOR_QQ` 环境变量或 `.config` 中的 `administrator
 | 动作、`/me`、`//whoami` | 可用 | 可用 |
 | 自动回应与静默控制 | 可用 | 可用 |
 | `//actions` 词表运维 | 不执行 | 可用 |
+| `//status`、`//hush status` 状态查询 | 不执行 | 可用 |
 | `//go`、`//js` 代码执行 | 不执行 | 可用 |
 
 普通成员发送受限命令时，Bendan 会静默拦截，不返回执行结果。

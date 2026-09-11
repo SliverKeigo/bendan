@@ -27,3 +27,14 @@ type Capabilities struct {
 type CapabilityProvider interface {
 	Capabilities() Capabilities
 }
+
+// RuntimeStatus describes the connection state exposed by a platform client.
+type RuntimeStatus struct {
+	Connected bool
+}
+
+// RuntimeStatusProvider is optional because commands can still run with test
+// and third-party platform implementations that do not expose connection state.
+type RuntimeStatusProvider interface {
+	RuntimeStatus() RuntimeStatus
+}

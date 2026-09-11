@@ -32,6 +32,7 @@ export default defineConfig({
             { text: '配置与部署', link: '/guide/configuration' },
             { text: '动作词表', link: '/guide/actions' },
             { text: '管理员命令', link: '/guide/administration' },
+            { text: '状态查询', link: '/guide/status' },
           ],
         },
         {

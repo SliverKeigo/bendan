@@ -10,6 +10,7 @@ import (
 )
 
 var Bot platform.Bot
+var startedAt = time.Now()
 
 const automaticReplyCooldown = 5 * time.Second
 const messageDeduplicationWindow = 10 * time.Minute
@@ -32,8 +33,10 @@ type namedHandler struct {
 }
 
 var directHandlers = []namedHandler{
+	{name: "hush_status", handle: HushStatus},
 	{name: "hush", handle: Hush},
 	{name: "whoami", handle: Whoami},
+	{name: "status", handle: Status},
 	{name: "actions", handle: Actions},
 	{name: "eval", handle: Eval},
 	{name: "me", handle: Me},

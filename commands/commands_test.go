@@ -17,6 +17,67 @@ func withTestAdministrator(t *testing.T) {
 	t.Setenv("ADMINISTRATOR_QQ", testAdministratorQQ)
 }
 
+func TestStatusCommandsRequireAdministrator(t *testing.T) {
+	withTestAdministrator(t)
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	for _, test := range []struct {
+		name   string
+		sender string
+		text   string
+		want   string
+	}{
+		{name: "non administrator status is ignored", sender: "2", text: "//status", want: ""},
+		{name: "administrator sees status", sender: testAdministratorQQ, text: "//status", want: "Bendan 状态"},
+		{name: "administrator sees unhushed status", sender: testAdministratorQQ, text: "//hush status", want: "当前会话未静默"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bot.mu.Lock()
+			bot.replied = nil
+			bot.mu.Unlock()
+			Handle(context.Background(), &platform.Message{
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: test.sender, DisplayName: "Keigo"},
+				Text:   test.text,
+			})
+			bot.mu.Lock()
+			defer bot.mu.Unlock()
+			if test.want == "" {
+				if len(bot.replied) != 0 {
+					t.Fatalf("replied = %#v, want none", bot.replied)
+				}
+				return
+			}
+			if len(bot.replied) != 1 || !strings.Contains(bot.replied[0], test.want) {
+				t.Fatalf("replied = %#v, want text containing %q", bot.replied, test.want)
+			}
+		})
+	}
+}
+
+func TestHushStatusReportsRemainingTime(t *testing.T) {
+	withTestAdministrator(t)
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	previousDir := hushDir
+	hushDir = t.TempDir()
+	t.Cleanup(func() { hushDir = previousDir })
+	if err := os.WriteFile(hushDir+"/123", nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	Handle(context.Background(), &platform.Message{
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: testAdministratorQQ, DisplayName: "Keigo"},
+		Text:   "//hush status",
+	})
+	if len(bot.replied) != 1 || !strings.Contains(bot.replied[0], "当前会话静默中") {
+		t.Fatalf("replied = %#v, want active hush status", bot.replied)
+	}
+}
+
 func TestActionsCommandEditsRuntimeLexicon(t *testing.T) {
 	path := t.TempDir() + "/actions.json"
 	if err := LoadActionLexicon(path); err != nil {

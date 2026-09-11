@@ -24,6 +24,15 @@ func init() {
 	}
 }
 
+func hushUntil(chatID string) (time.Time, bool) {
+	info, err := os.Lstat(filepath.Join(hushDir, chatID))
+	if err != nil {
+		return time.Time{}, false
+	}
+	until := info.ModTime().Add(hushDuration)
+	return until, time.Now().Before(until)
+}
+
 func Hush(ctx context.Context, message *platform.Message) bool {
 	path := filepath.Join(hushDir, message.Chat.ID)
 	repliesToBot := message.ReplyTo != nil && message.ReplyTo.Sender.ID == Bot.Identity().ID
@@ -48,6 +57,6 @@ func Hush(ctx context.Context, message *platform.Message) bool {
 		return true
 	}
 
-	info, err := os.Lstat(path)
-	return err == nil && time.Now().Before(info.ModTime().Add(hushDuration))
+	_, hushed := hushUntil(message.Chat.ID)
+	return hushed
 }

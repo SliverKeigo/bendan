@@ -50,6 +50,12 @@ func (c *Client) Identity() platform.User {
 	return c.self
 }
 
+func (c *Client) RuntimeStatus() platform.RuntimeStatus {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return platform.RuntimeStatus{Connected: c.conn != nil}
+}
+
 func (*Client) Capabilities() platform.Capabilities {
 	return platform.Capabilities{CanDeleteMessage: true}
 }
