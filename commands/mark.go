@@ -20,7 +20,8 @@ func Mark(ctx context.Context, message *platform.Message) bool {
 	if rand.Float64() > .9 {
 		text = []string{"啊？", "嗯？"}[rand.Intn(2)]
 	} else {
-		text = yesSel([2][]string{{"?", "？", "¿"}, {message.Text[:rand.Intn(len(message.Text))+1]}}, &yes.Token{Sub: message.Text})
+		marks := []rune(message.Text)
+		text = yesSel([2][]string{{"?", "？", "¿"}, {string(marks[:rand.Intn(len(marks))+1])}}, &yes.Token{Sub: message.Text})
 	}
 	replyText(ctx, message, text)
 	return true

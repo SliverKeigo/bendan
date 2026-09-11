@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sxyazi/bendan/platform"
 )
@@ -15,6 +16,41 @@ const testAdministratorQQ = "1226355793"
 
 func withTestAdministrator(t *testing.T) {
 	t.Setenv("ADMINISTRATOR_QQ", testAdministratorQQ)
+}
+
+func TestMarkReplyIsValidUTF8(t *testing.T) {
+	for _, input := range []string{"？", "¿", "‽", "？？？", "?？¿‽"} {
+		t.Run(input, func(t *testing.T) {
+			bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+			withTestBot(t, bot)
+
+			message := &platform.Message{
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+				Text:   input,
+			}
+			for i := 0; i < 100; i++ {
+				bot.mu.Lock()
+				bot.replied = nil
+				bot.mu.Unlock()
+
+				if !Mark(context.Background(), message) {
+					t.Fatalf("Mark returned false for %q", input)
+				}
+
+				bot.mu.Lock()
+				if len(bot.replied) != 1 {
+					bot.mu.Unlock()
+					t.Fatalf("replied = %#v, want exactly one reply", bot.replied)
+				}
+				reply := bot.replied[0]
+				bot.mu.Unlock()
+				if !utf8.ValidString(reply) {
+					t.Fatalf("reply %q contains invalid UTF-8 bytes: % x", reply, []byte(reply))
+				}
+			}
+		})
+	}
 }
 
 func TestStatusCommandsRequireAdministrator(t *testing.T) {
