@@ -8,6 +8,6 @@ services:
       ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN:?Set ONEBOT_ACCESS_TOKEN in .env}
       ACTION_LEXICON_PATH: /etc/bendan/actions.json
     volumes:
-      - ./actions.json:/etc/bendan/actions.json:ro
+      - ./actions.json:/etc/bendan/actions.json
     extra_hosts:
       - host.docker.internal:host-gateway
