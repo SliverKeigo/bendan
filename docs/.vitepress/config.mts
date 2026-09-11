@@ -16,7 +16,7 @@ export default defineConfig({
       { text: '使用指南', link: '/guide/getting-started' },
       { text: '功能一览', link: '/guide/features' },
       { text: '配置部署', link: '/guide/configuration' },
-      { text: 'GitHub', link: 'https://github.com/sxyazi/bendan' },
+      { text: 'GitHub', link: 'https://github.com/SliverKeigo/bendan' },
     ],
     sidebar: {
       '/guide/': [

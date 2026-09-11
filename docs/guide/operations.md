@@ -7,9 +7,10 @@
 ```text
 starting Bendan onebot_ws_url="ws://127.0.0.1:3001" action_lexicon_path="actions.json" zh=46 latin=21
 onebot connected endpoint="ws://127.0.0.1:3001"
+automatic reply event storage enabled
 ```
 
-第一行说明 Bendan 已读取配置和动作词表；第二行表示已连接 NapCat 的 OneBot WebSocket。
+第一行说明 Bendan 已读取配置和动作词表；第二行表示已连接 NapCat 的 OneBot WebSocket。配置 PostgreSQL 后还会看到事件存储启用日志（各行实际顺序可能略有不同）。
 
 Docker 环境中查看日志：
 
@@ -66,6 +67,29 @@ action lexicon reloaded path="..." zh=46 latin=21
 - 代码执行、`//actions`、`//status` 与 `//hush status` 只允许配置的管理员帐号。
 - 回复动作时，确认消息确实是“回复”而不是只复制了文本。
 - 机器人自己发出的消息会被忽略，避免自我循环。
+
+## 回复 Bot 的静默指令没有生效
+
+静默控制要求消息回复 Bendan，或明确 `@Bendan`，并在正文中包含静默关键词。NapCat 的引用关系来自 OneBot `reply` 消息段，Bendan 会调用 `get_msg` 查询被引用消息的发送者。
+
+如果没有生效，请检查：
+
+1. NapCat 是否允许并正确响应 OneBot `get_msg`；
+2. Bendan 日志是否出现 `onebot resolve reply failed`；
+3. 消息是否真正回复了 Bendan，而不是只复制文字；
+4. `@` 的 QQ 是否为当前 Bot 自身账号。
+
+为避免误伤，回复其他群成员后说“闭嘴”，以及没有回复或 `@Bendan` 的普通聊天，都不会触发整个会话静默。
+
+## 自动回应事件没有写入数据库
+
+配置 `BENDAN_DATABASE_URL` 后，启动日志应包含：
+
+```text
+automatic reply event storage enabled
+```
+
+成功写入时会出现 `automatic reply events stored count=...`。如果数据库不可用，Bot 仍会正常回复，只在日志中记录批次写入失败；队列已满时会记录 `reason=queue_full`。使用 `network_mode: host` 时，同机 PostgreSQL 通常应连接 `127.0.0.1`。
 
 ## 重复回复或异常文本
 

@@ -39,11 +39,13 @@
 - 发送 `/me 内容`。如 `/me 喝醉了`，机器人发送 `A 喝醉了！`
 - 发送 `//whoami`，查询当前 QQ 号和会话 ID
 - 发送 `/没关系` 或 `/没事的`，获得一条鼓励回复
-- 发送 `？`，机器人回复一个问号
-- 发送 `看看…`、`是…吗`、`有没有…`、`能不能…` 等句式，机器人半随机回应
+- 发送 `？`，机器人直接发送一个问号（自动回应默认不引用原消息）
+- 发送 `看看…`、`是…吗`、`是不是…`、`有没有…`、`能不能…`、`会不会…`、`可不可以…`、`行不行…`、`好不好…`、`要不要…`、`该不该…`、`值不值得…` 等句式，机器人半随机回应
+- 发送 `A 还是 B`，机器人从两个选项中生成回应；群聊口语无需问号也可识别
 - 发送 `//go` 或 `//js` 后跟代码，执行 Go 或 JavaScript（仅管理员可用）
 - 管理员可发送 `//actions` 查看词表状态、`//actions list` 查看动作、`//actions reload` 立即重载配置、`//actions add <zh|latin> <动作> <输出>` 添加动作，以及 `//actions remove <zh|latin> <动作>` 删除动作
-- 回复机器人说“别说话”“闭嘴”或“安静”会使它在该会话中静默 30 分钟；回复“说话”恢复
+- 回复机器人，或直接 `@Bendan`，并在消息中包含“闭嘴”“别说话”“不要说话”“别讲话”“不要讲话”“住嘴”“安静”“别吵”或“消停”等关键词，会使它在该会话中静默 30 分钟；同样回复或 `@Bendan` 并包含“说话”可提前恢复
+- 只有明确回复或提及机器人时才会触发静默，群成员之间正常使用这些词不会影响机器人
 - 链接净化实现仍保留，但已禁用自动回复，避免在群聊中打断对话
 
 ## 架构
@@ -55,7 +57,9 @@ QQNT + NapCatQQ
 Bendan Bot (Go)
 ```
 
-本服务使用 OneBot v11 **正向 WebSocket**：Bendan 主动连接 NapCat 提供的 WebSocket 服务端。NapCat 的 OneBot 配置需要启用正向 WebSocket，并允许本服务连接。
+本服务使用 OneBot v11 **正向 WebSocket**：Bendan 主动连接 NapCat 提供的 WebSocket 服务端。NapCat 的 OneBot 配置需要启用正向 WebSocket，并允许本服务连接。引用消息中的 `reply` 消息段会通过 OneBot `get_msg` 补全，用于判断静默指令是否确实指向机器人。
+
+成功发送的自动回应可以异步写入 PostgreSQL，用于分析处理器触发频率和优化自然语言规则。数据库写入采用有界非阻塞队列；数据库不可用或队列已满时只记录日志，不影响机器人继续回复。事件会保存输入、输出、处理器和投递方式，QQ 用户与群标识仅保存带盐 SHA-256 哈希。
 
 ## 配置
 
@@ -76,6 +80,8 @@ Bendan Bot (Go)
 | `ONEBOT_ACCESS_TOKEN` / `onebot_access_token` | 建议 | 与 NapCat WebSocket Access Token 一致；生产环境必须设置 |
 | `ADMINISTRATOR_QQ` / `administrator_qq` | 建议 | 唯一管理员的 QQ 号；未配置时管理员与代码执行功能均禁用 |
 | `ACTION_LEXICON_PATH` / `action_lexicon_path` | 否 | 动作词表 JSON 路径，默认 `actions.json` |
+| `BENDAN_DATABASE_URL` | 否 | PostgreSQL 连接地址；配置后异步记录成功发送的自动回应事件 |
+| `BENDAN_EVENT_HASH_SALT` | 建议随数据库配置 | 用户及会话标识的不可逆哈希盐；应使用独立的长随机值 |
 
 ## 本地运行
 
