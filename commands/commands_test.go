@@ -11,6 +11,12 @@ import (
 	"github.com/sxyazi/bendan/platform"
 )
 
+const testAdministratorQQ = "1226355793"
+
+func withTestAdministrator(t *testing.T) {
+	t.Setenv("ADMINISTRATOR_QQ", testAdministratorQQ)
+}
+
 func TestActionsCommandEditsRuntimeLexicon(t *testing.T) {
 	path := t.TempDir() + "/actions.json"
 	if err := LoadActionLexicon(path); err != nil {
@@ -37,6 +43,7 @@ func TestActionsCommandEditsRuntimeLexicon(t *testing.T) {
 }
 
 func TestActionsCommandRequiresAdministrator(t *testing.T) {
+	withTestAdministrator(t)
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
 	withTestBot(t, bot)
 
@@ -47,8 +54,8 @@ func TestActionsCommandRequiresAdministrator(t *testing.T) {
 		want   string
 	}{
 		{name: "non administrator is ignored", sender: "2", text: "//actions", want: ""},
-		{name: "administrator sees status", sender: administratorQQ, text: "//actions", want: "动作词表"},
-		{name: "administrator lists actions", sender: administratorQQ, text: "//actions list", want: "中文："},
+		{name: "administrator sees status", sender: testAdministratorQQ, text: "//actions", want: "动作词表"},
+		{name: "administrator lists actions", sender: testAdministratorQQ, text: "//actions list", want: "中文："},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			bot.mu.Lock()
@@ -75,6 +82,7 @@ func TestActionsCommandRequiresAdministrator(t *testing.T) {
 }
 
 func TestEvalRequiresAdministrator(t *testing.T) {
+	withTestAdministrator(t)
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
 	withTestBot(t, bot)
 

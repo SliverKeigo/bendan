@@ -34,7 +34,7 @@
 - 发送 `/没关系` 或 `/没事的`，获得一条鼓励回复
 - 发送 `？`，机器人回复一个问号
 - 发送 `看看…`、`是…吗`、`有没有…`、`能不能…` 等句式，机器人半随机回应
-- 发送 `//go` 或 `//js` 后跟代码，执行 Go 或 JavaScript（仅管理员 QQ `1226355793`）
+- 发送 `//go` 或 `//js` 后跟代码，执行 Go 或 JavaScript（仅管理员可用）
 - 管理员可发送 `//actions` 查看词表状态、`//actions list` 查看动作、`//actions reload` 立即重载配置、`//actions add <zh|latin> <动作> <输出>` 添加动作，以及 `//actions remove <zh|latin> <动作>` 删除动作
 - 回复机器人说“别说话”“闭嘴”或“安静”会使它在该会话中静默 30 分钟；回复“说话”恢复
 - 链接净化实现仍保留，但已禁用自动回复，避免在群聊中打断对话
@@ -60,6 +60,7 @@ Bendan Bot (Go)
 {
   "onebot_ws_url": "ws://127.0.0.1:3001",
   "onebot_access_token": "replace-with-a-long-random-token",
+  "administrator_qq": "replace-with-your-qq-number",
   "action_lexicon_path": "actions.json"
 }
 ```
@@ -68,6 +69,7 @@ Bendan Bot (Go)
 | --- | --- | --- |
 | `ONEBOT_WS_URL` / `onebot_ws_url` | 是 | NapCat OneBot v11 正向 WebSocket 地址，例如 `ws://127.0.0.1:3001` |
 | `ONEBOT_ACCESS_TOKEN` / `onebot_access_token` | 建议 | 与 NapCat WebSocket Access Token 一致；生产环境必须设置 |
+| `ADMINISTRATOR_QQ` / `administrator_qq` | 建议 | 唯一管理员的 QQ 号；未配置时管理员与代码执行功能均禁用 |
 | `ACTION_LEXICON_PATH` / `action_lexicon_path` | 否 | 动作词表 JSON 路径，默认 `actions.json` |
 
 ## 本地运行

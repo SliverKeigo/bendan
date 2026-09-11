@@ -1,9 +1,11 @@
 package commands
 
-import "github.com/sxyazi/bendan/platform"
-
-const administratorQQ = "1226355793"
+import (
+	"github.com/sxyazi/bendan/platform"
+	"github.com/sxyazi/bendan/utils"
+)
 
 func isAdministrator(message *platform.Message) bool {
-	return message != nil && message.Sender.ID == administratorQQ
+	administratorQQ := utils.Config("administrator_qq")
+	return message != nil && administratorQQ != "" && message.Sender.ID == administratorQQ
 }

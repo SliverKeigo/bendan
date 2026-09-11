@@ -1,10 +1,12 @@
 # 管理员命令
 
-Bendan 当前只有一个管理员：QQ `1226355793`。管理员验证按收到的 OneBot 发送者 QQ 号进行，不依赖群角色或昵称。
+Bendan 使用 `ADMINISTRATOR_QQ` 环境变量或 `.config` 中的 `administrator_qq` 配置唯一管理员。管理员验证按收到的 OneBot 发送者 QQ 号进行，不依赖群角色或昵称。
+
+未配置管理员时，词表管理与代码执行会保持禁用状态。配置示例见 [配置与部署](/guide/configuration)。
 
 ## 权限边界
 
-| 能力 | 普通成员 | 管理员 |
+| 能力 | 普通成员 | 配置的管理员 |
 | --- | --- | --- |
 | 动作、`/me`、`//whoami` | 可用 | 可用 |
 | 自动回应与静默控制 | 可用 | 可用 |
@@ -44,10 +46,20 @@ func main() {
 //js console.log('hello')
 ```
 
-代码执行属于高风险能力。只应将管理员 QQ 设为你完全控制的帐号，并且不要在公开群中执行会暴露 Token、文件路径或隐私信息的代码。
+代码执行属于高风险能力。管理员 QQ 必须是你完全控制的帐号，并且不要在公开群中执行会暴露 Token、文件路径或隐私信息的代码。
 
 ## 修改管理员帐号
 
-当前管理员 QQ 在源码 `commands/admin.go` 的 `administratorQQ` 常量中定义。修改该值后重新构建并部署 Bendan。
+在部署环境的 `.env` 中设置：
 
-> 这项修改故意不开放为群内命令，避免管理员权限被聊天消息改变。
+```dotenv
+ADMINISTRATOR_QQ=replace-with-your-qq-number
+```
+
+也可在 `.config` 中设置：
+
+```json
+{ "administrator_qq": "replace-with-your-qq-number" }
+```
+
+修改环境变量后重启 Bendan。不要将真实 QQ 号写入公开文档、示例文件或提交记录。
