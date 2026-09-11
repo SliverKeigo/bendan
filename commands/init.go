@@ -46,6 +46,7 @@ var directHandlers = []namedHandler{
 
 var automaticHandlers = []namedHandler{
 	{name: "mark", handle: Mark},
+	{name: "yes_choice", handle: YesChoice},
 	{name: "yes_right", handle: YesRight},
 	{name: "yes_is", handle: YesIs},
 	{name: "yes_can", handle: YesCan},

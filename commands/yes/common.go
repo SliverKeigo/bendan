@@ -14,11 +14,13 @@ const (
 	TypHaveAB
 	TypIsYesNo
 	TypHaveYesNo
+	TypShouldYesNo
 	TypHaveSo
 
 	TypRight
 	TypCan
 	TypLook
+	TypChoice
 
 	TypUnknown
 )

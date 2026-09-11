@@ -53,6 +53,97 @@ func TestMarkReplyIsValidUTF8(t *testing.T) {
 	}
 }
 
+func TestYesChoiceUsesParsedPlaceholders(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	message := &platform.Message{
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "猫还是狗？",
+	}
+	for i := 0; i < 100; i++ {
+		bot.mu.Lock()
+		bot.replied = nil
+		bot.mu.Unlock()
+
+		if !YesChoice(context.Background(), message) {
+			t.Fatal("YesChoice returned false for a choice question")
+		}
+
+		bot.mu.Lock()
+		if len(bot.replied) != 1 {
+			bot.mu.Unlock()
+			t.Fatalf("replied = %#v, want exactly one reply", bot.replied)
+		}
+		reply := bot.replied[0]
+		bot.mu.Unlock()
+		if strings.Contains(reply, "{left}") || strings.Contains(reply, "{right}") || strings.Contains(reply, "{choice}") {
+			t.Fatalf("reply %q contains an unresolved placeholder", reply)
+		}
+		if !strings.Contains(reply, "猫") && !strings.Contains(reply, "狗") {
+			t.Fatalf("reply %q contains neither parsed choice", reply)
+		}
+	}
+}
+
+func TestHandleChoiceQuestionUsesChoiceHandler(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	Handle(context.Background(), &platform.Message{
+		ID:     "choice-1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "猫还是狗？",
+	})
+
+	bot.mu.Lock()
+	defer bot.mu.Unlock()
+	if len(bot.replied) != 1 {
+		t.Fatalf("replied = %#v, want exactly one choice reply", bot.replied)
+	}
+	if !strings.Contains(bot.replied[0], "猫") && !strings.Contains(bot.replied[0], "狗") {
+		t.Fatalf("reply %q contains neither parsed choice", bot.replied[0])
+	}
+}
+
+func TestExpandedYesNoHandlersReply(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		text    string
+		handler func(context.Context, *platform.Message) bool
+	}{
+		{name: "can", text: "能不能吃饭？", handler: YesCan},
+		{name: "will", text: "会不会下雨？", handler: YesCan},
+		{name: "may", text: "可不可以出门？", handler: YesCan},
+		{name: "good", text: "今天去好不好？", handler: YesCan},
+		{name: "want", text: "要不要吃饭？", handler: YesIs},
+		{name: "should", text: "该不该睡觉？", handler: YesIs},
+		{name: "worth", text: "值不值得买？", handler: YesIs},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+			withTestBot(t, bot)
+			message := &platform.Message{
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+				Text:   test.text,
+			}
+
+			if !test.handler(context.Background(), message) {
+				t.Fatalf("handler returned false for %q", test.text)
+			}
+			bot.mu.Lock()
+			defer bot.mu.Unlock()
+			if len(bot.replied) != 1 || bot.replied[0] == "" {
+				t.Fatalf("replied = %#v, want one non-empty reply", bot.replied)
+			}
+		})
+	}
+}
+
 func TestStatusCommandsRequireAdministrator(t *testing.T) {
 	withTestAdministrator(t)
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}

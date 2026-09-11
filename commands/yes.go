@@ -19,6 +19,34 @@ func yesSel(options [2][]string, token *yes.Token) string {
 	return selected[rand.Intn(len(selected))]
 }
 
+func YesChoice(ctx context.Context, message *platform.Message) bool {
+	token := yes.ChoiceTokenize(message.Text)
+	if token == nil {
+		return false
+	}
+
+	choice := token.Obj
+	if yes.StableChoice(token) == 1 {
+		choice = token.Ind
+	}
+	templates := []string{
+		"{choice}",
+		"{choice}！",
+		"我选{choice}",
+		"还是{choice}吧",
+		"肯定是{choice}",
+		"{left}和{right}我都要",
+	}
+	text := templates[rand.Intn(len(templates))]
+	text = strings.NewReplacer(
+		"{left}", token.Obj,
+		"{right}", token.Ind,
+		"{choice}", choice,
+	).Replace(text)
+	replyText(ctx, message, text)
+	return true
+}
+
 func YesRight(ctx context.Context, message *platform.Message) bool {
 	token := yes.RightTokenize(message.Text)
 	if token == nil {
@@ -71,6 +99,15 @@ func YesIs(ctx context.Context, message *platform.Message) bool {
 		options = [2][]string{{"是", "是的", "yyy"}, {"no", "不是", "不是啊"}}
 	case yes.TypHaveYesNo:
 		options = [2][]string{{"有", "有的", "有啊"}, {"无", "没", "没有", "没啊", "并没有"}}
+	case yes.TypShouldYesNo:
+		switch token.Word {
+		case "要不要":
+			options = [2][]string{{"要", "要啊", "当然要"}, {"不要", "还是不要了", "没必要"}}
+		case "该不该":
+			options = [2][]string{{"该", "应该", "当然该"}, {"不该", "还是算了", "不应该"}}
+		case "值不值得":
+			options = [2][]string{{"值得", "当然值得"}, {"不值得", "还是算了"}}
+		}
 	case yes.TypHaveSo:
 		options = [2][]string{{"是的", "是的捏"}, {"确实有" + token.Obj, "确实是有" + token.Obj}}
 	default:
@@ -87,11 +124,17 @@ func YesCan(ctx context.Context, message *platform.Message) bool {
 	}
 
 	var text string
-	switch []rune(token.Word)[0] {
-	case '能':
+	switch token.Word {
+	case "能不能", "能吗", "能嘛", "能吧", "能罢":
 		text = yesSel([2][]string{{"能", "能！", "能啊"}, {"不能", "不能！", "不可以！", "不，你不能"}}, token)
-	case '会':
+	case "会不会", "会吗", "会嘛", "会吧", "会罢":
 		text = yesSel([2][]string{{"会", "会！", "会的"}, {"不会", "不会啊", "不会的！"}}, token)
+	case "可不可以":
+		text = yesSel([2][]string{{"可以", "可以啊", "当然可以"}, {"不可以", "还是不可以", "不太可以"}}, token)
+	case "行不行":
+		text = yesSel([2][]string{{"行", "行啊", "肯定行"}, {"不行", "不太行", "还是不行"}}, token)
+	case "好不好":
+		text = yesSel([2][]string{{"好", "好啊", "当然好"}, {"不好", "不太好", "还是算了"}}, token)
 	}
 	replyText(ctx, message, text)
 	return true

@@ -26,6 +26,9 @@ func TestIsTokenize(t *testing.T) {
 		{"是不是傻", "sub=, obj=傻"},
 		{"X是不是傻", "sub=X, obj=傻"},
 		{"X是不是在自慰", "sub=X, obj=在自慰"},
+		{"要不要吃饭？", "sub=, obj=吃饭"},
+		{"你该不该睡觉了", "sub=你, obj=睡觉了"},
+		{"值不值得买？", "sub=, obj=买"},
 		{"X是幼女嘛，还是  我编不下去了", "sub=X, obj=幼女, ind=我编不下去了"},
 
 		{"你是那个？", "sub=你, obj=那个"},
