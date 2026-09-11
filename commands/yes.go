@@ -43,7 +43,7 @@ func YesChoice(ctx context.Context, message *platform.Message) bool {
 		"{right}", token.Ind,
 		"{choice}", choice,
 	).Replace(text)
-	replyText(ctx, message, text)
+	sendText(ctx, message.Chat, text)
 	return true
 }
 
@@ -75,7 +75,7 @@ func YesRight(ctx context.Context, message *platform.Message) bool {
 			options = [2][]string{{"yy", "yyy", "可以", "肯定行", "我觉得行"}, {"不行", "不太行", "应该不行", "肯定不行", "我觉得不行"}}
 		}
 	}
-	replyText(ctx, message, yesSel(options, token))
+	sendText(ctx, message.Chat, yesSel(options, token))
 	return true
 }
 
@@ -113,7 +113,7 @@ func YesIs(ctx context.Context, message *platform.Message) bool {
 	default:
 		return false
 	}
-	replyText(ctx, message, yesSel(options, token))
+	sendText(ctx, message.Chat, yesSel(options, token))
 	return true
 }
 
@@ -136,7 +136,7 @@ func YesCan(ctx context.Context, message *platform.Message) bool {
 	case "好不好":
 		text = yesSel([2][]string{{"好", "好啊", "当然好"}, {"不好", "不太好", "还是算了"}}, token)
 	}
-	replyText(ctx, message, text)
+	sendText(ctx, message.Chat, text)
 	return true
 }
 
@@ -147,7 +147,12 @@ func YesLook(ctx context.Context, message *platform.Message) bool {
 	}
 	if rand.Float64() > .9 {
 		options := []string{"你的呢", "看看你的", "can can need"}
-		replyText(ctx, message, options[rand.Intn(len(options))])
+		text := options[rand.Intn(len(options))]
+		if message.ReplyTo == nil {
+			sendText(ctx, message.Chat, text)
+		} else {
+			replyText(ctx, message.ReplyTo, text)
+		}
 		return true
 	}
 

@@ -45,6 +45,9 @@ func TestHandleRecordsSuccessfulAutomaticReply(t *testing.T) {
 	if event.Handler != "yes_choice" || event.InputText != "猫还是狗" || event.ReplyText == "" {
 		t.Fatalf("unexpected event: %#v", event)
 	}
+	if event.Delivery != "send" {
+		t.Fatalf("delivery = %q, want send", event.Delivery)
+	}
 	if event.ChatHash == "" || event.ChatHash == message.Chat.ID {
 		t.Fatalf("chat hash was not anonymized: %q", event.ChatHash)
 	}

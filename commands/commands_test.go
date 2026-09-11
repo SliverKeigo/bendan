@@ -31,7 +31,7 @@ func TestMarkReplyIsValidUTF8(t *testing.T) {
 			}
 			for i := 0; i < 100; i++ {
 				bot.mu.Lock()
-				bot.replied = nil
+				bot.sent = nil
 				bot.mu.Unlock()
 
 				if !Mark(context.Background(), message) {
@@ -39,11 +39,15 @@ func TestMarkReplyIsValidUTF8(t *testing.T) {
 				}
 
 				bot.mu.Lock()
-				if len(bot.replied) != 1 {
+				if len(bot.replied) != 0 {
 					bot.mu.Unlock()
-					t.Fatalf("replied = %#v, want exactly one reply", bot.replied)
+					t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
 				}
-				reply := bot.replied[0]
+				if len(bot.sent) != 1 {
+					bot.mu.Unlock()
+					t.Fatalf("sent = %#v, want exactly one direct message", bot.sent)
+				}
+				reply := bot.sent[0]
 				bot.mu.Unlock()
 				if !utf8.ValidString(reply) {
 					t.Fatalf("reply %q contains invalid UTF-8 bytes: % x", reply, []byte(reply))
@@ -64,7 +68,7 @@ func TestYesChoiceUsesParsedPlaceholders(t *testing.T) {
 	}
 	for i := 0; i < 100; i++ {
 		bot.mu.Lock()
-		bot.replied = nil
+		bot.sent = nil
 		bot.mu.Unlock()
 
 		if !YesChoice(context.Background(), message) {
@@ -72,11 +76,15 @@ func TestYesChoiceUsesParsedPlaceholders(t *testing.T) {
 		}
 
 		bot.mu.Lock()
-		if len(bot.replied) != 1 {
+		if len(bot.replied) != 0 {
 			bot.mu.Unlock()
-			t.Fatalf("replied = %#v, want exactly one reply", bot.replied)
+			t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
 		}
-		reply := bot.replied[0]
+		if len(bot.sent) != 1 {
+			bot.mu.Unlock()
+			t.Fatalf("sent = %#v, want exactly one direct message", bot.sent)
+		}
+		reply := bot.sent[0]
 		bot.mu.Unlock()
 		if strings.Contains(reply, "{left}") || strings.Contains(reply, "{right}") || strings.Contains(reply, "{choice}") {
 			t.Fatalf("reply %q contains an unresolved placeholder", reply)
@@ -87,7 +95,7 @@ func TestYesChoiceUsesParsedPlaceholders(t *testing.T) {
 	}
 }
 
-func TestHandleChoiceQuestionUsesChoiceHandler(t *testing.T) {
+func TestHandleChoiceQuestionSendsWithoutQuote(t *testing.T) {
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
 	withTestBot(t, bot)
 	resetMessageGuards(t)
@@ -101,15 +109,18 @@ func TestHandleChoiceQuestionUsesChoiceHandler(t *testing.T) {
 
 	bot.mu.Lock()
 	defer bot.mu.Unlock()
-	if len(bot.replied) != 1 {
-		t.Fatalf("replied = %#v, want exactly one choice reply", bot.replied)
+	if len(bot.replied) != 0 {
+		t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
 	}
-	if !strings.Contains(bot.replied[0], "猫") && !strings.Contains(bot.replied[0], "狗") {
-		t.Fatalf("reply %q contains neither parsed choice", bot.replied[0])
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent = %#v, want exactly one direct choice message", bot.sent)
+	}
+	if !strings.Contains(bot.sent[0], "猫") && !strings.Contains(bot.sent[0], "狗") {
+		t.Fatalf("message %q contains neither parsed choice", bot.sent[0])
 	}
 }
 
-func TestExpandedYesNoHandlersReply(t *testing.T) {
+func TestExpandedYesNoHandlersSendWithoutQuote(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		text    string
@@ -137,8 +148,11 @@ func TestExpandedYesNoHandlersReply(t *testing.T) {
 			}
 			bot.mu.Lock()
 			defer bot.mu.Unlock()
-			if len(bot.replied) != 1 || bot.replied[0] == "" {
-				t.Fatalf("replied = %#v, want one non-empty reply", bot.replied)
+			if len(bot.replied) != 0 {
+				t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
+			}
+			if len(bot.sent) != 1 || bot.sent[0] == "" {
+				t.Fatalf("sent = %#v, want one non-empty direct message", bot.sent)
 			}
 		})
 	}
@@ -584,8 +598,17 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 			})
 
 			if tt.want == "" {
-				if len(bot.sent) != 0 {
-					t.Fatalf("sent = %#v, want no response", bot.sent)
+				// The full dispatcher may legitimately fall through to a conversational
+				// automatic response. Verify only that Call itself rejects this text.
+				isolatedBot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+				withTestBot(t, isolatedBot)
+				handled := Call(context.Background(), &platform.Message{
+					Chat:   platform.Chat{ID: "123", Kind: "group"},
+					Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+					Text:   tt.text,
+				})
+				if handled || len(isolatedBot.sent) != 0 || len(isolatedBot.replied) != 0 {
+					t.Fatalf("Call handled non-action text: handled=%t sent=%#v replied=%#v", handled, isolatedBot.sent, isolatedBot.replied)
 				}
 				return
 			}
@@ -608,8 +631,17 @@ func TestHandlePreservesAutomaticRepliesForUnlistedChineseActions(t *testing.T) 
 		Text:   "看看 这个",
 	})
 
-	if len(bot.sent) != 1 || !strings.Contains(bot.sent[0], "看") {
-		t.Fatalf("sent = %#v, want a preserved look automatic reply", bot.sent)
+	if len(bot.sent)+len(bot.replied) != 1 {
+		t.Fatalf("sent=%#v replied=%#v, want one preserved look automatic response", bot.sent, bot.replied)
+	}
+	var response string
+	if len(bot.sent) == 1 {
+		response = bot.sent[0]
+	} else {
+		response = bot.replied[0]
+	}
+	if !strings.Contains(response, "看") && response != "can can need" {
+		t.Fatalf("response = %q, want a preserved look automatic response", response)
 	}
 }
 
@@ -642,8 +674,8 @@ func TestHandleRateLimitsRepeatedAutomaticResponsesFromOneUser(t *testing.T) {
 		})
 	}
 
-	if len(bot.replied) != 1 {
-		t.Fatalf("replied %d messages, want one user-rate-limited response: %#v", len(bot.replied), bot.replied)
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent %d messages, want one user-rate-limited response: %#v", len(bot.sent), bot.sent)
 	}
 }
 

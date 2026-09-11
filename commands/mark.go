@@ -23,6 +23,6 @@ func Mark(ctx context.Context, message *platform.Message) bool {
 		marks := []rune(message.Text)
 		text = yesSel([2][]string{{"?", "？", "¿"}, {string(marks[:rand.Intn(len(marks))+1])}}, &yes.Token{Sub: message.Text})
 	}
-	replyText(ctx, message, text)
+	sendText(ctx, message.Chat, text)
 	return true
 }
