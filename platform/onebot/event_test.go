@@ -89,6 +89,34 @@ func TestEventPreservesAtMentionTarget(t *testing.T) {
 	}
 }
 
+func TestEventIgnoresAtAllAndPreservesNamedMentions(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"post_type":"message",
+		"message_type":"group",
+		"self_id":422345383,
+		"message_id":67890,
+		"user_id":1226355793,
+		"group_id":744196849,
+		"sender":{"user_id":1226355793,"nickname":"Keigo"},
+		"message":[
+			{"type":"at","data":{"qq":"all"}},
+			{"type":"text","data":{"text":" 摸 "}},
+			{"type":"at","data":{"qq":"1797580779","name":"WuWa_MT9985.skill"}}
+		]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+
+	message := event.ToPlatformMessage()
+	if message == nil || message.Text != "摸" || len(message.Mentions) != 1 {
+		t.Fatalf("unexpected message: %#v", message)
+	}
+	if message.Mentions[0].ID != "1797580779" || message.Mentions[0].DisplayName != "WuWa_MT9985.skill" {
+		t.Fatalf("unexpected mentions: %#v", message.Mentions)
+	}
+}
+
 func TestEventUsesTextSegmentsWhenReplyAddsAnAtMention(t *testing.T) {
 	var event Event
 	if err := json.Unmarshal([]byte(`{

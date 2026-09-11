@@ -26,21 +26,27 @@ var messageGuards = struct {
 	messages:         make(map[string]time.Time),
 }
 
-var directHandlers = []func(context.Context, *platform.Message) bool{
-	Hush,
-	Whoami,
-	Eval,
-	Me,
-	Dontworry,
-	Call,
+type namedHandler struct {
+	name   string
+	handle func(context.Context, *platform.Message) bool
 }
 
-var automaticHandlers = []func(context.Context, *platform.Message) bool{
-	Mark,
-	YesRight,
-	YesIs,
-	YesCan,
-	YesLook,
+var directHandlers = []namedHandler{
+	{name: "hush", handle: Hush},
+	{name: "whoami", handle: Whoami},
+	{name: "actions", handle: Actions},
+	{name: "eval", handle: Eval},
+	{name: "me", handle: Me},
+	{name: "dontworry", handle: Dontworry},
+	{name: "call", handle: Call},
+}
+
+var automaticHandlers = []namedHandler{
+	{name: "mark", handle: Mark},
+	{name: "yes_right", handle: YesRight},
+	{name: "yes_is", handle: YesIs},
+	{name: "yes_can", handle: YesCan},
+	{name: "yes_look", handle: YesLook},
 }
 
 // Handle dispatches a platform-neutral message to the first matching command.
@@ -49,7 +55,8 @@ func Handle(ctx context.Context, message *platform.Message) {
 		return
 	}
 	for _, handler := range directHandlers {
-		if handler(ctx, message) {
+		if handler.handle(ctx, message) {
+			log.Printf("command handled sender=%q chat=%q handler=%s", message.Sender.ID, message.Chat.ID, handler.name)
 			return
 		}
 	}
@@ -57,7 +64,8 @@ func Handle(ctx context.Context, message *platform.Message) {
 	ctx = context.WithValue(ctx, automaticReplyContextKey{}, true)
 	ctx = context.WithValue(ctx, automaticReplyMessageContextKey{}, message)
 	for _, handler := range automaticHandlers {
-		if handler(ctx, message) {
+		if handler.handle(ctx, message) {
+			log.Printf("automatic reply handled sender=%q chat=%q handler=%s", message.Sender.ID, message.Chat.ID, handler.name)
 			return
 		}
 	}

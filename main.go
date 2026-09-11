@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/sxyazi/bendan/commands"
 	"github.com/sxyazi/bendan/platform/onebot"
@@ -23,6 +24,9 @@ func main() {
 
 	bot := onebot.NewClient(endpoint, utils.Config("onebot_access_token"))
 	commands.Bot = bot
+	lexiconPath, _, zh, latin := commands.ActionLexiconStatus()
+	log.Printf("starting Bendan onebot_ws_url=%q action_lexicon_path=%q zh=%d latin=%d", endpoint, lexiconPath, zh, latin)
+	go commands.WatchActionLexicon(ctx, time.Second)
 	if err := bot.Run(ctx, commands.Handle); err != nil {
 		log.Fatal(err)
 	}

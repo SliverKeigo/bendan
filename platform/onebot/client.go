@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -62,6 +63,7 @@ func (c *Client) Run(ctx context.Context, handle func(context.Context, *platform
 		}
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.endpoint, c.headers())
 		if err != nil {
+			log.Printf("onebot connect failed endpoint=%q retry_in=%s error=%v", c.endpoint, backoff, err)
 			if !wait(ctx, backoff) {
 				return nil
 			}
@@ -71,9 +73,13 @@ func (c *Client) Run(ctx context.Context, handle func(context.Context, *platform
 
 		backoff = time.Second
 		c.setConnection(conn)
+		log.Printf("onebot connected endpoint=%q", c.endpoint)
 		err = c.read(ctx, conn, handle)
 		c.clearConnection(conn)
 		_ = conn.Close()
+		if err != nil {
+			log.Printf("onebot disconnected endpoint=%q error=%v", c.endpoint, err)
+		}
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -101,6 +107,7 @@ func (c *Client) read(ctx context.Context, conn *websocket.Conn, handle func(con
 			Echo string `json:"echo"`
 		}
 		if err := json.Unmarshal(payload, &envelope); err != nil {
+			log.Printf("onebot ignored invalid envelope error=%v", err)
 			continue
 		}
 		if envelope.Echo != "" {
@@ -112,7 +119,8 @@ func (c *Client) read(ctx context.Context, conn *websocket.Conn, handle func(con
 		}
 
 		var event Event
-		if json.Unmarshal(payload, &event) != nil {
+		if err := json.Unmarshal(payload, &event); err != nil {
+			log.Printf("onebot ignored invalid event error=%v", err)
 			continue
 		}
 		c.setSelfID(event.SelfID)

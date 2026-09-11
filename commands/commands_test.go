@@ -2,12 +2,190 @@ package commands
 
 import (
 	"context"
+	"os"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sxyazi/bendan/platform"
 )
+
+func TestActionsCommandEditsRuntimeLexicon(t *testing.T) {
+	path := t.TempDir() + "/actions.json"
+	if err := LoadActionLexicon(path); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := LoadActionLexicon("does-not-exist.json"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := updateActionLexicon("latin", "wave", "挥了挥"); err != nil {
+		t.Fatal(err)
+	}
+	if !isAction("WAVE") || actionDisplay("wave") != "挥了挥" {
+		t.Fatalf("saved lexicon did not add wave action")
+	}
+	if err := removeActionLexiconEntry("latin", "wave"); err != nil {
+		t.Fatal(err)
+	}
+	if isAction("wave") {
+		t.Fatal("saved lexicon did not remove wave action")
+	}
+}
+
+func TestActionsCommandRequiresAdministrator(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	for _, test := range []struct {
+		name   string
+		sender string
+		text   string
+		want   string
+	}{
+		{name: "non administrator is ignored", sender: "2", text: "//actions", want: ""},
+		{name: "administrator sees status", sender: administratorQQ, text: "//actions", want: "动作词表"},
+		{name: "administrator lists actions", sender: administratorQQ, text: "//actions list", want: "中文："},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			bot.mu.Lock()
+			bot.replied = nil
+			bot.mu.Unlock()
+			Handle(context.Background(), &platform.Message{
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: test.sender, DisplayName: "Keigo"},
+				Text:   test.text,
+			})
+			bot.mu.Lock()
+			defer bot.mu.Unlock()
+			if test.want == "" {
+				if len(bot.replied) != 0 {
+					t.Fatalf("replied = %#v, want none", bot.replied)
+				}
+				return
+			}
+			if len(bot.replied) != 1 || !strings.Contains(bot.replied[0], test.want) {
+				t.Fatalf("replied = %#v, want text containing %q", bot.replied, test.want)
+			}
+		})
+	}
+}
+
+func TestEvalRequiresAdministrator(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	handled := Eval(context.Background(), &platform.Message{
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "2", DisplayName: "Other"},
+		Text:   "//go fmt.Println(1)",
+	})
+	if !handled || len(bot.replied) != 0 {
+		t.Fatalf("handled=%t replied=%#v, want silently handled non-admin eval", handled, bot.replied)
+	}
+}
+
+func TestWatchActionLexiconReloadsModifiedFile(t *testing.T) {
+	path := t.TempDir() + "/actions.json"
+	writeLexicon := func(contents string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeLexicon(`{"zh":{"挥":"挥了挥"}}`)
+	if err := LoadActionLexicon(path); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		WatchActionLexicon(ctx, 5*time.Millisecond)
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		<-done
+		if err := LoadActionLexicon("does-not-exist.json"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	writeLexicon(`{"zh":{"摇":"摇了摇"}}`)
+	deadline := time.Now().Add(time.Second)
+	for !isAction("摇") && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !isAction("摇") || isAction("挥") {
+		t.Fatalf("hot reload did not replace actions: shake=%t wave=%t", isAction("摇"), isAction("挥"))
+	}
+}
+
+func TestWatchActionLexiconKeepsPreviousLexiconAfterInvalidUpdate(t *testing.T) {
+	path := t.TempDir() + "/actions.json"
+	if err := os.WriteFile(path, []byte(`{"zh":{"挥":"挥了挥"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := LoadActionLexicon(path); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		WatchActionLexicon(ctx, 5*time.Millisecond)
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		<-done
+		if err := LoadActionLexicon("does-not-exist.json"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	if err := os.WriteFile(path, []byte(`{"zh":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(30 * time.Millisecond)
+	if !isAction("挥") {
+		t.Fatal("invalid hot reload discarded the previous action lexicon")
+	}
+}
+
+func TestLoadActionLexiconUsesRuntimeFile(t *testing.T) {
+	path := t.TempDir() + "/actions.json"
+	if err := os.WriteFile(path, []byte(`{
+		"zh": {"挥": "挥了挥"},
+		"latin": {"wave": "挥了挥"}
+	}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := LoadActionLexicon(path); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := LoadActionLexicon("does-not-exist.json"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if !isAction("挥") || !isAction("WAVE") {
+		t.Fatal("runtime action lexicon did not load configured actions")
+	}
+	if actionDisplay("wave") != "挥了挥" {
+		t.Fatalf("actionDisplay(wave) = %q, want %q", actionDisplay("wave"), "挥了挥")
+	}
+	if isAction("摸") {
+		t.Fatal("runtime action lexicon retained an action outside the configured file")
+	}
+}
 
 func TestHandleMeUsesPlatformBot(t *testing.T) {
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}

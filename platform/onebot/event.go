@@ -54,12 +54,17 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 	}
 
 	m.Segmented = true
+	m.Text = ""
+	m.Mentions = nil
 	var textBuilder strings.Builder
 	for _, segment := range segments {
 		switch segment.Type {
 		case "text":
 			textBuilder.WriteString(segment.Data.Text)
 		case "at":
+			if segment.Data.QQ == "all" {
+				continue
+			}
 			m.Mentions = append(m.Mentions, platform.User{ID: segment.Data.QQ, DisplayName: segment.Data.Name})
 		}
 	}

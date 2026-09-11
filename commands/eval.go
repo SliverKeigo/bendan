@@ -18,6 +18,9 @@ func Eval(ctx context.Context, message *platform.Message) bool {
 	if len(matches) < 3 {
 		return false
 	}
+	if !isAdministrator(message) {
+		return true
+	}
 
 	result := make(chan []string, 1)
 	go func() {
