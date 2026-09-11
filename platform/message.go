@@ -9,6 +9,7 @@ type Message struct {
 	Sender                 User
 	Text                   string
 	Caption                string
+	Mentions               []User
 	ReplyTo                *Message
 	IsBot                  bool
 	IsForwardedChannelPost bool

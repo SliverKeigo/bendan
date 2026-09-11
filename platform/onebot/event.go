@@ -30,6 +30,7 @@ type Event struct {
 // Message preserves text segments while tolerating NapCat's string or array wire format.
 type Message struct {
 	Text      string
+	Mentions  []platform.User
 	Segmented bool
 }
 
@@ -44,6 +45,8 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 		Type string `json:"type"`
 		Data struct {
 			Text string `json:"text"`
+			QQ   string `json:"qq"`
+			Name string `json:"name"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &segments); err != nil {
@@ -53,8 +56,11 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 	m.Segmented = true
 	var textBuilder strings.Builder
 	for _, segment := range segments {
-		if segment.Type == "text" {
+		switch segment.Type {
+		case "text":
 			textBuilder.WriteString(segment.Data.Text)
+		case "at":
+			m.Mentions = append(m.Mentions, platform.User{ID: segment.Data.QQ, DisplayName: segment.Data.Name})
 		}
 	}
 	m.Text = strings.TrimSpace(textBuilder.String())
@@ -94,12 +100,13 @@ func (e Event) ToPlatformMessage() *platform.Message {
 	}
 
 	return &platform.Message{
-		ID:      fmt.Sprintf("%d", e.MessageID),
-		Chat:    platform.Chat{ID: fmt.Sprintf("%d", chatID), Name: chatName, Kind: chatKind},
-		Sender:  e.Sender.toPlatformUser(e.UserID),
-		Text:    text,
-		ReplyTo: e.replyMessage(),
-		IsBot:   e.UserID == e.SelfID,
+		ID:       fmt.Sprintf("%d", e.MessageID),
+		Chat:     platform.Chat{ID: fmt.Sprintf("%d", chatID), Name: chatName, Kind: chatKind},
+		Sender:   e.Sender.toPlatformUser(e.UserID),
+		Text:     text,
+		Mentions: e.Message.Mentions,
+		ReplyTo:  e.replyMessage(),
+		IsBot:    e.UserID == e.SelfID,
 	}
 }
 

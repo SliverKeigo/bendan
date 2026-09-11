@@ -42,10 +42,11 @@ func TestHandleWhoamiUsesQQIdentifiers(t *testing.T) {
 
 func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 	tests := []struct {
-		name    string
-		text    string
-		replyTo *platform.Message
-		want    string
+		name     string
+		text     string
+		mentions []platform.User
+		replyTo  *platform.Message
+		want     string
 	}{
 		{name: "slash action only", text: "/摸", want: "Keigo 摸了 自己！"},
 		{name: "unlisted Chinese action", text: "/看看", want: ""},
@@ -60,6 +61,18 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 		{name: "English action ignores case", text: "Hug 智智", want: "Keigo 抱了 智智！"},
 		{name: "English action without slash", text: "highfive 智智", want: "Keigo 击了掌 智智！"},
 		{name: "unlisted English text", text: "recent 对吗？", want: ""},
+		{
+			name:     "action with bot mention target",
+			text:     "摸",
+			mentions: []platform.User{{ID: "99", DisplayName: "Bendan"}},
+			want:     "Keigo 摸了 Bendan！",
+		},
+		{
+			name:    "action with result replying to bot targets bot",
+			text:    "摸 头",
+			replyTo: &platform.Message{Sender: platform.User{ID: "99", DisplayName: "Bendan"}},
+			want:    "Keigo 摸了 Bendan的头！",
+		},
 		{
 			name:    "action with result replying to another user",
 			text:    "/摸 头",
@@ -80,10 +93,11 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 			withTestBot(t, bot)
 
 			Handle(context.Background(), &platform.Message{
-				Chat:    platform.Chat{ID: "123", Kind: "group"},
-				Sender:  platform.User{ID: "1", DisplayName: "Keigo"},
-				Text:    tt.text,
-				ReplyTo: tt.replyTo,
+				Chat:     platform.Chat{ID: "123", Kind: "group"},
+				Sender:   platform.User{ID: "1", DisplayName: "Keigo"},
+				Text:     tt.text,
+				Mentions: tt.mentions,
+				ReplyTo:  tt.replyTo,
 			})
 
 			if tt.want == "" {

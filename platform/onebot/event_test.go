@@ -62,6 +62,33 @@ func TestEventRejectsNonMessageEvents(t *testing.T) {
 	}
 }
 
+func TestEventPreservesAtMentionTarget(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"post_type":"message",
+		"message_type":"group",
+		"self_id":422345383,
+		"message_id":67890,
+		"user_id":1226355793,
+		"group_id":744196849,
+		"sender":{"user_id":1226355793,"nickname":"Keigo","card":""},
+		"message":[
+			{"type":"text","data":{"text":"摸 "}},
+			{"type":"at","data":{"qq":"422345383","name":"Bendan"}}
+		]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+
+	message := event.ToPlatformMessage()
+	if message == nil || len(message.Mentions) != 1 {
+		t.Fatalf("mentions = %#v, want one mention", message)
+	}
+	if message.Text != "摸" || message.Mentions[0].ID != "422345383" || message.Mentions[0].DisplayName != "Bendan" {
+		t.Fatalf("unexpected mention message: %#v", message)
+	}
+}
+
 func TestEventUsesTextSegmentsWhenReplyAddsAnAtMention(t *testing.T) {
 	var event Event
 	if err := json.Unmarshal([]byte(`{
