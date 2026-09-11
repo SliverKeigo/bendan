@@ -117,6 +117,36 @@ func TestEventIgnoresAtAllAndPreservesNamedMentions(t *testing.T) {
 	}
 }
 
+func TestEventResolvesReplySegmentToBotMessage(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"post_type":"message",
+		"message_type":"group",
+		"self_id":422345383,
+		"message_id":67890,
+		"user_id":1226355793,
+		"group_id":891343531,
+		"sender":{"user_id":1226355793,"nickname":"Keigo"},
+		"message":[
+			{"type":"reply","data":{"id":"123"}},
+			{"type":"text","data":{"text":"闭嘴"}}
+		]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+
+	message := event.ToPlatformMessage()
+	if message == nil {
+		t.Fatal("expected platform message")
+	}
+	if message.ReplyTo == nil {
+		t.Fatal("reply target is nil, want reply segment target")
+	}
+	if message.ReplyTo.ID != "123" {
+		t.Fatalf("reply target ID = %q, want 123", message.ReplyTo.ID)
+	}
+}
+
 func TestEventUsesTextSegmentsWhenReplyAddsAnAtMention(t *testing.T) {
 	var event Event
 	if err := json.Unmarshal([]byte(`{

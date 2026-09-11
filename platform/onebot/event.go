@@ -31,6 +31,7 @@ type Event struct {
 type Message struct {
 	Text      string
 	Mentions  []platform.User
+	ReplyID   string
 	Segmented bool
 }
 
@@ -47,6 +48,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 			Text string `json:"text"`
 			QQ   string `json:"qq"`
 			Name string `json:"name"`
+			ID   string `json:"id"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &segments); err != nil {
@@ -56,6 +58,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 	m.Segmented = true
 	m.Text = ""
 	m.Mentions = nil
+	m.ReplyID = ""
 	var textBuilder strings.Builder
 	for _, segment := range segments {
 		switch segment.Type {
@@ -66,6 +69,8 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 				continue
 			}
 			m.Mentions = append(m.Mentions, platform.User{ID: segment.Data.QQ, DisplayName: segment.Data.Name})
+		case "reply":
+			m.ReplyID = segment.Data.ID
 		}
 	}
 	m.Text = strings.TrimSpace(textBuilder.String())
@@ -121,6 +126,13 @@ func (e Event) replyMessage() *platform.Message {
 	}
 	if e.ReplyTo != nil {
 		return e.ReplyTo.ToPlatformMessage()
+	}
+	if e.Message.ReplyID != "" {
+		return &platform.Message{
+			ID:     e.Message.ReplyID,
+			Chat:   platform.Chat{ID: fmt.Sprintf("%d", e.GroupID), Kind: e.MessageType},
+			Sender: platform.User{},
+		}
 	}
 	return nil
 }

@@ -131,9 +131,47 @@ func (c *Client) read(ctx context.Context, conn *websocket.Conn, handle func(con
 		}
 		c.setSelfID(event.SelfID)
 		if message := event.ToPlatformMessage(); message != nil {
-			go handle(ctx, message)
+			go func() {
+				if err := c.resolveReply(ctx, message); err != nil {
+					log.Printf("onebot resolve reply failed message_id=%s reply_id=%s error=%v", message.ID, message.ReplyTo.ID, err)
+				}
+				handle(ctx, message)
+			}()
 		}
 	}
+}
+
+func (c *Client) resolveReply(ctx context.Context, message *platform.Message) error {
+	if message == nil || message.ReplyTo == nil || message.ReplyTo.ID == "" || message.ReplyTo.Sender.ID != "" {
+		return nil
+	}
+	messageID, err := strconv.ParseInt(message.ReplyTo.ID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid reply message ID %q: %w", message.ReplyTo.ID, err)
+	}
+	data, err := c.call(ctx, "get_msg", map[string]any{"message_id": messageID})
+	if err != nil {
+		return err
+	}
+	var replied Event
+	if err := json.Unmarshal(data, &replied); err != nil {
+		return fmt.Errorf("decode get_msg response: %w", err)
+	}
+	if replied.MessageType == "" {
+		replied.PostType = "message"
+		replied.MessageType = message.Chat.Kind
+	}
+	if replied.GroupID == 0 && message.Chat.Kind == "group" {
+		if groupID, parseErr := strconv.ParseInt(message.Chat.ID, 10, 64); parseErr == nil {
+			replied.GroupID = groupID
+		}
+	}
+	resolved := replied.ToPlatformMessage()
+	if resolved == nil {
+		return fmt.Errorf("get_msg returned a non-message event")
+	}
+	message.ReplyTo = resolved
+	return nil
 }
 
 func (c *Client) SendText(ctx context.Context, chat platform.Chat, text string) (*platform.Message, error) {

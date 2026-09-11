@@ -15,7 +15,7 @@ import (
 const hushDuration = 30 * time.Minute
 
 var hushDir = filepath.Join(os.TempDir(), "bendan", "hush")
-var reHush = regexp.MustCompile("别说话|闭嘴|安静")
+var reHush = regexp.MustCompile("别说话|不要说话|别讲话|不要讲话|闭嘴|住嘴|安静|别吵|消停")
 var reUnHush = regexp.MustCompile("说话")
 
 func init() {
@@ -33,11 +33,27 @@ func hushUntil(chatID string) (time.Time, bool) {
 	return until, time.Now().Before(until)
 }
 
+func targetsBot(message *platform.Message) bool {
+	if message == nil {
+		return false
+	}
+	botID := Bot.Identity().ID
+	if message.ReplyTo != nil && message.ReplyTo.Sender.ID == botID {
+		return true
+	}
+	for _, mention := range message.Mentions {
+		if mention.ID == botID {
+			return true
+		}
+	}
+	return false
+}
+
 func Hush(ctx context.Context, message *platform.Message) bool {
 	path := filepath.Join(hushDir, message.Chat.ID)
-	repliesToBot := message.ReplyTo != nil && message.ReplyTo.Sender.ID == Bot.Identity().ID
+	targetsBot := targetsBot(message)
 
-	if repliesToBot && reHush.MatchString(message.Text) {
+	if targetsBot && reHush.MatchString(message.Text) {
 		if err := os.WriteFile(path, nil, 0644); err == nil {
 			replyText(ctx, message, "😭")
 		} else {
@@ -47,7 +63,7 @@ func Hush(ctx context.Context, message *platform.Message) bool {
 		return true
 	}
 
-	if repliesToBot && reUnHush.MatchString(message.Text) {
+	if targetsBot && reUnHush.MatchString(message.Text) {
 		if err := os.Remove(path); err == nil || errors.Is(err, os.ErrNotExist) {
 			replyText(ctx, message, "好耶！")
 		} else {
