@@ -46,9 +46,13 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 		replyTo *platform.Message
 		want    string
 	}{
-		{name: "action only", text: "/摸", want: "Keigo 摸了 自己！"},
+		{name: "slash action only", text: "/摸", want: "Keigo 摸了 自己！"},
+		{name: "bare action requires a result", text: "摸", want: ""},
+		{name: "emoji action only", text: "/🤔", want: "Keigo 🤔 自己！"},
 		{name: "completed action with result", text: "/喝了 自己", want: "Keigo 喝了 自己！"},
-		{name: "action with result", text: "/摸 智智", want: "Keigo 摸了 智智！"},
+		{name: "slash action with result", text: "/摸 智智", want: "Keigo 摸了 智智！"},
+		{name: "bare action with result", text: "摸 智智", want: "Keigo 摸了 智智！"},
+		{name: "bare multi-character action with result", text: "抱抱 智智", want: "Keigo 抱抱了 智智！"},
 		{
 			name:    "action with result replying to another user",
 			text:    "/摸 头",
@@ -69,6 +73,12 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 				ReplyTo: tt.replyTo,
 			})
 
+			if tt.want == "" {
+				if len(bot.sent) != 0 {
+					t.Fatalf("sent = %#v, want no response", bot.sent)
+				}
+				return
+			}
 			if len(bot.sent) != 1 || bot.sent[0] != tt.want {
 				t.Fatalf("sent = %#v, want %q", bot.sent, tt.want)
 			}
@@ -88,5 +98,82 @@ func TestCallDoesNotTreatLatinSlashCommandsAsActions(t *testing.T) {
 
 	if handled || len(bot.sent) != 0 || len(bot.replied) != 0 {
 		t.Fatalf("Call handled a non-action slash command: handled=%t sent=%#v replied=%#v", handled, bot.sent, bot.replied)
+	}
+}
+
+func TestHandleRateLimitsRepeatedAutomaticResponsesFromOneUser(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	for _, id := range []string{"1", "2"} {
+		Handle(context.Background(), &platform.Message{
+			ID:     id,
+			Chat:   platform.Chat{ID: "123", Kind: "group"},
+			Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+			Text:   "？",
+		})
+	}
+
+	if len(bot.replied) != 1 {
+		t.Fatalf("replied %d messages, want one user-rate-limited response: %#v", len(bot.replied), bot.replied)
+	}
+}
+
+func TestHandleDoesNotRateLimitExplicitCommands(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	for _, id := range []string{"1", "2"} {
+		Handle(context.Background(), &platform.Message{
+			ID:     id,
+			Chat:   platform.Chat{ID: "123", Kind: "group"},
+			Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+			Text:   "/me 喝茶",
+		})
+	}
+
+	if len(bot.sent) != 2 {
+		t.Fatalf("sent %d messages, want two explicit command responses: %#v", len(bot.sent), bot.sent)
+	}
+}
+
+func TestHandleDedupesMessageIDs(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	message := &platform.Message{
+		ID:     "1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "/me 喝茶",
+	}
+	Handle(context.Background(), message)
+	Handle(context.Background(), message)
+
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent %d messages, want one deduplicated response: %#v", len(bot.sent), bot.sent)
+	}
+}
+
+func TestHandleRateLimitsAutomaticReplyToOriginalSender(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	for _, id := range []string{"1", "2"} {
+		Handle(context.Background(), &platform.Message{
+			ID:      id,
+			Chat:    platform.Chat{ID: "123", Kind: "group"},
+			Sender:  platform.User{ID: "1", DisplayName: "Keigo"},
+			Text:    "看看",
+			ReplyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
+		})
+	}
+
+	if len(bot.replied) != 1 {
+		t.Fatalf("replied %d messages, want one response limited by the triggering sender: %#v", len(bot.replied), bot.replied)
 	}
 }

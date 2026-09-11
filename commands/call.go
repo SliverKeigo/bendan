@@ -24,35 +24,43 @@ func targetOfInteraction(message *platform.Message) string {
 }
 
 func actionWithParticle(action string) string {
-	if strings.HasSuffix(action, "了") {
+	if strings.HasSuffix(action, "了") || !unicode.Is(unicode.Han, []rune(action)[0]) {
 		return action
 	}
 	return action + "了"
 }
 
 func Call(ctx context.Context, message *platform.Message) bool {
-	if len(message.Text) < 2 || message.Text[0] != '/' || message.Text[1] == '/' {
+	text := message.Text
+	hasSlash := strings.HasPrefix(text, "/")
+	if hasSlash {
+		if len(text) < 2 || strings.HasPrefix(text, "//") {
+			return false
+		}
+		text = text[1:]
+	}
+
+	params := strings.Fields(text)
+	if len(params) == 0 || (hasSlash && len(params) > 2) || (!hasSlash && len(params) != 2) {
+		return false
+	}
+	if hasSlash && !unicode.Is(unicode.Han, []rune(params[0])[0]) && len(params) != 1 {
 		return false
 	}
 
-	params := strings.Fields(message.Text[1:])
-	if len(params) == 0 || !unicode.Is(unicode.Han, []rune(params[0])[0]) {
-		return false
-	}
-
-	var text string
+	var response string
 	switch len(params) {
 	case 1:
-		text = fmt.Sprintf("%s %s %s！", senderName(message), actionWithParticle(params[0]), targetOfInteraction(message))
+		response = fmt.Sprintf("%s %s %s！", senderName(message), actionWithParticle(params[0]), targetOfInteraction(message))
 	case 2:
 		if message.ReplyTo == nil || message.ReplyTo.Sender.ID == message.Sender.ID || message.ReplyTo.Sender.ID == Bot.Identity().ID {
-			text = fmt.Sprintf("%s %s %s！", senderName(message), actionWithParticle(params[0]), params[1])
+			response = fmt.Sprintf("%s %s %s！", senderName(message), actionWithParticle(params[0]), params[1])
 		} else {
-			text = fmt.Sprintf("%s %s %s %s！", senderName(message), params[0], targetOfInteraction(message), params[1])
+			response = fmt.Sprintf("%s %s %s %s！", senderName(message), params[0], targetOfInteraction(message), params[1])
 		}
 	default:
 		return false
 	}
-	sendText(ctx, message.Chat, text)
+	sendText(ctx, message.Chat, response)
 	return true
 }
