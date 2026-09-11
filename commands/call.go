@@ -30,10 +30,20 @@ func mentionedTarget(message *platform.Message) string {
 	if mention.DisplayName != "" {
 		return mention.DisplayName
 	}
+	if message.ReplyTo != nil && mention.ID == message.ReplyTo.Sender.ID {
+		return senderName(message.ReplyTo)
+	}
 	if mention.ID == Bot.Identity().ID {
 		return senderName(&platform.Message{Sender: Bot.Identity()})
 	}
 	return "@" + mention.ID
+}
+
+func actionTarget(message *platform.Message) string {
+	if target := mentionedTarget(message); target != "" {
+		return target
+	}
+	return targetOfInteraction(message)
 }
 
 func Call(ctx context.Context, message *platform.Message) bool {
@@ -47,7 +57,7 @@ func Call(ctx context.Context, message *platform.Message) bool {
 	}
 
 	params := strings.Fields(text)
-	if len(params) == 0 || (hasSlash && len(params) > 2) || (!hasSlash && len(params) != 2 && !(len(params) == 1 && mentionedTarget(message) != "")) {
+	if len(params) == 0 || (hasSlash && len(params) > 2) || (!hasSlash && len(params) != 2 && !(len(params) == 1 && (message.ReplyTo != nil || mentionedTarget(message) != ""))) {
 		return false
 	}
 	if (hasSlash && !isSlashAction(params[0])) || (!hasSlash && !isAction(params[0])) {
@@ -57,11 +67,7 @@ func Call(ctx context.Context, message *platform.Message) bool {
 	var response string
 	switch len(params) {
 	case 1:
-		target := mentionedTarget(message)
-		if target == "" {
-			target = targetOfInteraction(message)
-		}
-		response = fmt.Sprintf("%s %s %s！", senderName(message), actionDisplay(params[0]), target)
+		response = fmt.Sprintf("%s %s %s！", senderName(message), actionDisplay(params[0]), actionTarget(message))
 	case 2:
 		if message.ReplyTo == nil || message.ReplyTo.Sender.ID == message.Sender.ID {
 			response = fmt.Sprintf("%s %s %s！", senderName(message), actionDisplay(params[0]), params[1])

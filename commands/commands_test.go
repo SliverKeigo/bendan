@@ -62,6 +62,19 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 		{name: "English action without slash", text: "highfive 智智", want: "Keigo 击了掌 智智！"},
 		{name: "unlisted English text", text: "recent 对吗？", want: ""},
 		{
+			name:    "action replying to another user without result",
+			text:    "摸",
+			replyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
+			want:    "Keigo 摸了 智智！",
+		},
+		{
+			name:     "action with mention uses reply name when mention omits it",
+			text:     "摸",
+			mentions: []platform.User{{ID: "2"}},
+			replyTo:  &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
+			want:     "Keigo 摸了 智智！",
+		},
+		{
 			name:     "action with bot mention target",
 			text:     "摸",
 			mentions: []platform.User{{ID: "99", DisplayName: "Bendan"}},

@@ -36,7 +36,6 @@ var directHandlers = []func(context.Context, *platform.Message) bool{
 }
 
 var automaticHandlers = []func(context.Context, *platform.Message) bool{
-	Purify,
 	Mark,
 	YesRight,
 	YesIs,
