@@ -1,33 +1,105 @@
 package yes
 
-import (
-	"fmt"
-	"regexp"
-	"strings"
-)
+import "strings"
 
-var reChoice = regexp.MustCompile(fmt.Sprintf(`^\s*(.+?)\s*(?:%s)*还是\s*(.+?)\s*(?:%s)*$`, marks, marks))
+const choiceTrimCutset = " \t\r\n啊阿呀吗嘛呢捏,.?!;，。？！；"
 
-// ChoiceTokenize parses a two-option question such as "猫还是狗？".
+var choiceStatementPrefixes = []string{
+	"无论", "不论", "不管", "与其", "即使", "哪怕", "但是", "可是", "然而",
+}
+
+var choicePromptPrefixes = []string{
+	"大家觉得", "你们觉得", "你觉得", "大家认为", "你们认为", "你认为",
+	"你们说", "你说", "你们看", "你看", "到底", "究竟", "选", "选择",
+}
+
+var choiceAdverbRights = []string{
+	"觉得", "认为", "决定", "选择了", "选了", "还是", "会", "要", "得",
+	"应该", "先", "继续", "挺", "很", "比较", "不太", "仍然", "仍旧",
+	"依然", "最好", "终于", "又",
+}
+
+// ChoiceTokenize parses a two-option expression around the conjunction "还是".
+// It does not require punctuation because casual chat questions commonly omit it.
 func ChoiceTokenize(s string) *Token {
-	if token := IsTokenize(s); token != nil && token.Ind != "" {
-		return &Token{Typ: TypChoice, Sub: token.Sub, Obj: token.Obj, Ind: token.Ind, Word: "还是"}
+	text := strings.TrimSpace(s)
+	if strings.Count(text, "还是") != 1 {
+		return nil
 	}
-	trimmed := strings.TrimSpace(s)
-	if strings.HasPrefix(trimmed, "但是") || strings.HasSuffix(trimmed, "吧") || strings.HasSuffix(trimmed, "罢") {
+	for _, prefix := range choiceStatementPrefixes {
+		if strings.HasPrefix(text, prefix) {
+			return nil
+		}
+	}
+
+	parts := strings.SplitN(text, "还是", 2)
+	leftRaw := strings.TrimSpace(parts[0])
+	right := trimChoiceOption(parts[1])
+	if leftRaw == "" || right == "" {
 		return nil
 	}
 
-	ms := reChoice.FindStringSubmatch(s)
-	if ms == nil {
-		return nil
+	var context, left string
+	if marker := strings.LastIndex(leftRaw, "是"); marker >= 0 {
+		context = trimChoiceContext(leftRaw[:marker])
+		left = trimChoiceOption(leftRaw[marker+len("是"):])
+	} else if prompt, rest := splitChoicePrompt(leftRaw); prompt != "" {
+		context = prompt
+		left = trimChoiceOption(rest)
+	} else {
+		left = trimChoiceOption(leftRaw)
+		if likelyAdverbialStill(left, right) {
+			return nil
+		}
 	}
 
-	left := strings.Trim(strings.TrimSpace(ms[1]), marks)
-	right := strings.Trim(strings.TrimSpace(ms[2]), marks)
 	if left == "" || right == "" || reDeterminer.MatchString(left) || reDeterminer.MatchString(right) {
 		return nil
 	}
+	return &Token{Typ: TypChoice, Sub: context, Obj: left, Ind: right, Word: "还是"}
+}
 
-	return &Token{Typ: TypChoice, Obj: left, Ind: right, Word: "还是"}
+func splitChoicePrompt(s string) (string, string) {
+	for _, prefix := range choicePromptPrefixes {
+		if strings.HasPrefix(s, prefix) {
+			return prefix, strings.TrimSpace(s[len(prefix):])
+		}
+	}
+	return "", s
+}
+
+func trimChoiceOption(s string) string {
+	return strings.Trim(strings.TrimSpace(s), choiceTrimCutset)
+}
+
+func trimChoiceContext(s string) string {
+	return strings.Trim(strings.TrimSpace(s), " \t\r\n,.?!;:，。？！；：")
+}
+
+func likelyAdverbialStill(left, right string) bool {
+	badRight := false
+	for _, prefix := range choiceAdverbRights {
+		if strings.HasPrefix(right, prefix) {
+			badRight = true
+			break
+		}
+	}
+	if !badRight {
+		return false
+	}
+
+	if left == "我" || left == "你" || left == "他" || left == "她" || left == "它" ||
+		left == "我们" || left == "你们" || left == "他们" || left == "她们" || left == "它们" ||
+		left == "最后" || left == "最终" || left == "后来" || left == "结果" {
+		return true
+	}
+	if (strings.HasPrefix(left, "这") || strings.HasPrefix(left, "那")) && len([]rune(left)) <= 12 {
+		return true
+	}
+	for _, subject := range []string{"我", "你", "他", "她", "它", "我们", "你们", "他们", "她们", "它们"} {
+		if strings.HasPrefix(left, subject) && len([]rune(left)) <= 12 {
+			return true
+		}
+	}
+	return false
 }
