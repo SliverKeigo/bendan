@@ -8,11 +8,25 @@ import (
 	"github.com/sxyazi/bendan/platform"
 )
 
+func displayName(user platform.User) string {
+	name := strings.Join(strings.Fields(user.DisplayName), " ")
+	if name == "" {
+		return ""
+	}
+	if strings.HasPrefix(name, "@") {
+		name = "@" + strings.TrimLeft(name, "@")
+	}
+	return name
+}
+
 func senderName(message *platform.Message) string {
-	if message == nil || message.Sender.DisplayName == "" {
+	if message == nil {
 		return "有人"
 	}
-	return message.Sender.DisplayName
+	if name := displayName(message.Sender); name != "" {
+		return name
+	}
+	return "有人"
 }
 
 func targetOfInteraction(message *platform.Message) string {
@@ -27,8 +41,8 @@ func mentionedTarget(message *platform.Message) string {
 		return ""
 	}
 	mention := message.Mentions[0]
-	if mention.DisplayName != "" {
-		return mention.DisplayName
+	if name := displayName(mention); name != "" {
+		return name
 	}
 	if message.ReplyTo != nil && mention.ID == message.ReplyTo.Sender.ID {
 		return senderName(message.ReplyTo)

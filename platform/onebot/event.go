@@ -68,7 +68,12 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 			if segment.Data.QQ == "all" {
 				continue
 			}
-			m.Mentions = append(m.Mentions, platform.User{ID: segment.Data.QQ, DisplayName: segment.Data.Name})
+			name := strings.TrimSpace(segment.Data.Name)
+			if name == "" {
+				name = strings.TrimSpace(segment.Data.Text)
+				name = strings.TrimPrefix(name, "@")
+			}
+			m.Mentions = append(m.Mentions, platform.User{ID: segment.Data.QQ, DisplayName: name})
 		case "reply":
 			m.ReplyID = segment.Data.ID
 		}

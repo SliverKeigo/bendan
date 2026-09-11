@@ -135,10 +135,53 @@ func (c *Client) read(ctx context.Context, conn *websocket.Conn, handle func(con
 				if err := c.resolveReply(ctx, message); err != nil {
 					log.Printf("onebot resolve reply failed message_id=%s reply_id=%s error=%v", message.ID, message.ReplyTo.ID, err)
 				}
+				if err := c.resolveMentions(ctx, message); err != nil {
+					log.Printf("onebot resolve mentions failed message_id=%s error=%v", message.ID, err)
+				}
 				handle(ctx, message)
 			}()
 		}
 	}
+}
+
+func (c *Client) resolveMentions(ctx context.Context, message *platform.Message) error {
+	if message == nil || message.Chat.Kind != "group" {
+		return nil
+	}
+	groupID, err := strconv.ParseInt(message.Chat.ID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid group ID %q: %w", message.Chat.ID, err)
+	}
+	for index := range message.Mentions {
+		mention := &message.Mentions[index]
+		if mention.DisplayName != "" || mention.ID == "" {
+			continue
+		}
+		userID, parseErr := strconv.ParseInt(mention.ID, 10, 64)
+		if parseErr != nil {
+			return fmt.Errorf("invalid mentioned user ID %q: %w", mention.ID, parseErr)
+		}
+		data, callErr := c.call(ctx, "get_group_member_info", map[string]any{
+			"group_id": groupID,
+			"user_id":  userID,
+			"no_cache": false,
+		})
+		if callErr != nil {
+			return callErr
+		}
+		var member struct {
+			Nickname string `json:"nickname"`
+			Card     string `json:"card"`
+		}
+		if decodeErr := json.Unmarshal(data, &member); decodeErr != nil {
+			return fmt.Errorf("decode get_group_member_info response: %w", decodeErr)
+		}
+		mention.DisplayName = member.Card
+		if mention.DisplayName == "" {
+			mention.DisplayName = member.Nickname
+		}
+	}
+	return nil
 }
 
 func (c *Client) resolveReply(ctx context.Context, message *platform.Message) error {

@@ -585,6 +585,28 @@ func TestDefaultActionLexiconMappings(t *testing.T) {
 	}
 }
 
+func TestHandleMentionedActionNormalizesDecoratedDisplayName(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+
+	Handle(context.Background(), &platform.Message{
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "@@WuWa_MT9985.skill\n"},
+		Text:   "摸",
+		Mentions: []platform.User{{
+			ID:          "1797580779",
+			DisplayName: " @@WuWa_MT9985.skill\n ",
+		}},
+	})
+
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent = %#v, want exactly one action response", bot.sent)
+	}
+	if got, want := bot.sent[0], "@WuWa_MT9985.skill 摸了摸@WuWa_MT9985.skill！"; got != want {
+		t.Fatalf("sent = %q, want %q", got, want)
+	}
+}
+
 func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 	tests := []struct {
 		name     string
