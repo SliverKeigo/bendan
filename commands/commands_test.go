@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sxyazi/bendan/platform"
@@ -47,17 +48,29 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 		want    string
 	}{
 		{name: "slash action only", text: "/摸", want: "Keigo 摸了 自己！"},
+		{name: "unlisted Chinese action", text: "/看看", want: ""},
 		{name: "bare action requires a result", text: "摸", want: ""},
 		{name: "emoji action only", text: "/🤔", want: "Keigo 🤔 自己！"},
 		{name: "completed action with result", text: "/喝了 自己", want: "Keigo 喝了 自己！"},
 		{name: "slash action with result", text: "/摸 智智", want: "Keigo 摸了 智智！"},
 		{name: "bare action with result", text: "摸 智智", want: "Keigo 摸了 智智！"},
-		{name: "bare multi-character action with result", text: "抱抱 智智", want: "Keigo 抱抱了 智智！"},
+		{name: "bare multi-character action with result", text: "抱抱 智智", want: "Keigo 抱了抱 智智！"},
+		{name: "whitelisted English action", text: "rua 智智", want: "Keigo 揉了揉 智智！"},
+		{name: "slash whitelisted English action", text: "/rua 智智", want: "Keigo 揉了揉 智智！"},
+		{name: "English action ignores case", text: "Hug 智智", want: "Keigo 抱了 智智！"},
+		{name: "English action without slash", text: "highfive 智智", want: "Keigo 击了掌 智智！"},
+		{name: "unlisted English text", text: "recent 对吗？", want: ""},
 		{
 			name:    "action with result replying to another user",
 			text:    "/摸 头",
 			replyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
-			want:    "Keigo 摸 智智 头！",
+			want:    "Keigo 摸了 智智的头！",
+		},
+		{
+			name:    "repeated action with result replying to another user",
+			text:    "摸摸 头",
+			replyTo: &platform.Message{Sender: platform.User{ID: "2", DisplayName: "智智"}},
+			want:    "Keigo 摸了摸 智智的头！",
 		},
 	}
 
@@ -83,6 +96,23 @@ func TestHandleCallFormatsActionsWithoutDuplicatingTarget(t *testing.T) {
 				t.Fatalf("sent = %#v, want %q", bot.sent, tt.want)
 			}
 		})
+	}
+}
+
+func TestHandlePreservesAutomaticRepliesForUnlistedChineseActions(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	Handle(context.Background(), &platform.Message{
+		ID:     "1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "看看 这个",
+	})
+
+	if len(bot.sent) != 1 || !strings.Contains(bot.sent[0], "看") {
+		t.Fatalf("sent = %#v, want a preserved look automatic reply", bot.sent)
 	}
 }
 
@@ -155,6 +185,32 @@ func TestHandleDedupesMessageIDs(t *testing.T) {
 
 	if len(bot.sent) != 1 {
 		t.Fatalf("sent %d messages, want one deduplicated response: %#v", len(bot.sent), bot.sent)
+	}
+}
+
+func TestHandleDedupesConcurrentMessageIDs(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	const workers = 32
+	var group sync.WaitGroup
+	group.Add(workers)
+	for range workers {
+		go func() {
+			defer group.Done()
+			Handle(context.Background(), &platform.Message{
+				ID:     "1",
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+				Text:   "/me 喝茶",
+			})
+		}()
+	}
+	group.Wait()
+
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent %d messages, want one concurrent deduplicated response: %#v", len(bot.sent), bot.sent)
 	}
 }
 
