@@ -70,6 +70,7 @@ Bendan Bot (Go)
   "onebot_ws_url": "ws://127.0.0.1:3001",
   "onebot_access_token": "replace-with-a-long-random-token",
   "administrator_qq": "replace-with-your-qq-number",
+  "automatic_reply_delay": "false",
   "action_lexicon_path": "actions.json"
 }
 ```
@@ -79,6 +80,7 @@ Bendan Bot (Go)
 | `ONEBOT_WS_URL` / `onebot_ws_url` | 是 | NapCat OneBot v11 正向 WebSocket 地址，例如 `ws://127.0.0.1:3001` |
 | `ONEBOT_ACCESS_TOKEN` / `onebot_access_token` | 建议 | 与 NapCat WebSocket Access Token 一致；生产环境必须设置 |
 | `ADMINISTRATOR_QQ` / `administrator_qq` | 建议 | 唯一管理员的 QQ 号；未配置时管理员与代码执行功能均禁用 |
+| `AUTOMATIC_REPLY_DELAY` / `automatic_reply_delay` | 否 | 是否为自动回应增加 500ms～1200ms 随机延迟，默认 `false` |
 | `ACTION_LEXICON_PATH` / `action_lexicon_path` | 否 | 动作词表 JSON 路径，默认 `actions.json` |
 | `BENDAN_DATABASE_URL` | 否 | PostgreSQL 连接地址；配置后异步记录成功发送的自动回应事件 |
 | `BENDAN_EVENT_HASH_SALT` | 建议随数据库配置 | 用户及会话标识的不可逆哈希盐；应使用独立的长随机值 |

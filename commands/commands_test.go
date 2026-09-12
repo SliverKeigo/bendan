@@ -120,10 +120,34 @@ func TestHandleChoiceQuestionSendsWithoutQuote(t *testing.T) {
 	}
 }
 
+func TestAutomaticReplyDelayDisabledByDefault(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+	t.Setenv("AUTOMATIC_REPLY_DELAY", "")
+
+	previousSleep := automaticReplySleep
+	sleepCalls := 0
+	automaticReplySleep = func(time.Duration) { sleepCalls++ }
+	t.Cleanup(func() { automaticReplySleep = previousSleep })
+
+	Handle(context.Background(), &platform.Message{
+		ID:     "no-delay-choice-1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "猫还是狗？",
+	})
+
+	if sleepCalls != 0 {
+		t.Fatalf("automatic reply delayed %d times by default, want none", sleepCalls)
+	}
+}
+
 func TestAutomaticReplyDelayRange(t *testing.T) {
 	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
 	withTestBot(t, bot)
 	resetMessageGuards(t)
+	t.Setenv("AUTOMATIC_REPLY_DELAY", "true")
 
 	previousSleep := automaticReplySleep
 	previousDelay := automaticReplyDelay

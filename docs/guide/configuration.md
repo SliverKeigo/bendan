@@ -9,6 +9,7 @@ Bendan 的配置优先级为：**环境变量 > 项目根目录 `.config` > 默�
 | `ONEBOT_WS_URL` | 是 | NapCat OneBot v11 正向 WebSocket 地址，例如 `ws://127.0.0.1:3001`。 |
 | `ONEBOT_ACCESS_TOKEN` | 建议 | 与 NapCat WebSocket Access Token 一致；生产环境应设置。 |
 | `ADMINISTRATOR_QQ` | 建议 | 唯一管理员的 QQ 号；未设置时受限管理能力保持禁用。 |
+| `AUTOMATIC_REPLY_DELAY` | 否 | 是否为自动回应增加 500ms～1200ms 随机延迟；默认 `false`。 |
 | `ACTION_LEXICON_PATH` | 否 | 动作词表 JSON 文件路径；默认为 `actions.json`。 |
 | `BENDAN_DATABASE_URL` | 否 | PostgreSQL 连接地址；配置后异步记录成功发送的自动回应事件。 |
 | `BENDAN_EVENT_HASH_SALT` | 建议随数据库配置 | 用户及会话标识的不可逆哈希盐；使用独立的长随机值。 |
@@ -19,6 +20,8 @@ Bendan 的配置优先级为：**环境变量 > 项目根目录 `.config` > 默�
 ONEBOT_WS_URL=ws://host.docker.internal:3001
 ONEBOT_ACCESS_TOKEN=replace-with-a-long-random-token
 ADMINISTRATOR_QQ=replace-with-your-qq-number
+# 可选：为自动回应增加 500ms～1200ms 随机延迟，默认关闭
+AUTOMATIC_REPLY_DELAY=false
 # 可选：将成功发送的自动回应异步写入 PostgreSQL
 BENDAN_DATABASE_URL=postgres://bot:password@host.docker.internal:5432/bendan?sslmode=disable
 # 启用事件存储时建议设置独立的长随机哈希盐
@@ -37,6 +40,7 @@ ACTION_LEXICON_PATH=actions.json
   "onebot_ws_url": "ws://127.0.0.1:3001",
   "onebot_access_token": "replace-with-a-long-random-token",
   "administrator_qq": "replace-with-your-qq-number",
+  "automatic_reply_delay": "false",
   "action_lexicon_path": "actions.json"
 }
 ```

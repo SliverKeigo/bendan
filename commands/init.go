@@ -4,10 +4,12 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/sxyazi/bendan/platform"
+	"github.com/sxyazi/bendan/utils"
 )
 
 var Bot platform.Bot
@@ -19,6 +21,11 @@ const messageDeduplicationWindow = 10 * time.Minute
 var automaticReplySleep = time.Sleep
 var automaticReplyDelay = func() time.Duration {
 	return 500*time.Millisecond + time.Duration(rand.Intn(701))*time.Millisecond
+}
+
+func automaticReplyDelayEnabled() bool {
+	enabled, err := strconv.ParseBool(utils.Config("automatic_reply_delay"))
+	return err == nil && enabled
 }
 
 type automaticReplyContextKey struct{}
@@ -124,7 +131,7 @@ func prepareSend(ctx context.Context, chat platform.Chat, sender platform.User) 
 	if !canSend(ctx, chat, sender) {
 		return false
 	}
-	if ctx.Value(automaticReplyContextKey{}) != nil {
+	if ctx.Value(automaticReplyContextKey{}) != nil && automaticReplyDelayEnabled() {
 		automaticReplySleep(automaticReplyDelay())
 	}
 	return true
