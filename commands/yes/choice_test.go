@@ -9,6 +9,7 @@ func TestChoiceTokenize(t *testing.T) {
 	}{
 		// 群聊中常见的不带标点短句。
 		{input: "猫还是狗", want: "sub=, obj=猫, ind=狗"},
+		{input: "这还是那", want: "sub=, obj=这, ind=那"},
 		{input: "奶茶 还是 咖啡", want: "sub=, obj=奶茶, ind=咖啡"},
 		{input: "去北京还是去上海呀", want: "sub=, obj=去北京, ind=去上海"},
 		{input: "吃饭还是睡觉", want: "sub=, obj=吃饭, ind=睡觉"},
@@ -38,6 +39,8 @@ func TestChoiceTokenize(t *testing.T) {
 		{input: "你还是先休息吧", want: ""},
 		{input: "最后还是选择了放弃", want: ""},
 		{input: "这个功能还是挺好用的", want: ""},
+		{input: "这还是优化过的", want: ""},
+		{input: "那还是原来做的", want: ""},
 		{input: "但是AA还是个BB", want: ""},
 	}
 

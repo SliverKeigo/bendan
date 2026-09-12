@@ -85,6 +85,10 @@ func likelyAdverbialStill(left, right string) bool {
 		}
 	}
 	if !badRight {
+		// “这/那还是……的”通常是在表达“仍然处于某种状态”，而不是二选一。
+		if (left == "这" || left == "那") && strings.HasSuffix(right, "的") {
+			return true
+		}
 		return false
 	}
 

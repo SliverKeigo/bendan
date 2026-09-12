@@ -120,6 +120,70 @@ func TestHandleChoiceQuestionSendsWithoutQuote(t *testing.T) {
 	}
 }
 
+func TestAutomaticReplyDelayRange(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	previousSleep := automaticReplySleep
+	previousDelay := automaticReplyDelay
+	var slept time.Duration
+	automaticReplySleep = func(delay time.Duration) { slept = delay }
+	automaticReplyDelay = func() time.Duration { return 850 * time.Millisecond }
+	t.Cleanup(func() {
+		automaticReplySleep = previousSleep
+		automaticReplyDelay = previousDelay
+	})
+
+	Handle(context.Background(), &platform.Message{
+		ID:     "delayed-choice-1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "猫还是狗？",
+	})
+
+	if slept != 850*time.Millisecond {
+		t.Fatalf("automatic reply slept %s, want 850ms", slept)
+	}
+	bot.mu.Lock()
+	defer bot.mu.Unlock()
+	if len(bot.sent) != 1 {
+		t.Fatalf("sent = %#v, want exactly one delayed automatic reply", bot.sent)
+	}
+}
+
+func TestAutomaticReplyDelayGeneratorRange(t *testing.T) {
+	for i := 0; i < 10000; i++ {
+		delay := automaticReplyDelay()
+		if delay < 500*time.Millisecond || delay > 1200*time.Millisecond {
+			t.Fatalf("automaticReplyDelay() = %s, want 500ms..1200ms", delay)
+		}
+	}
+}
+
+func TestDirectCommandDoesNotDelay(t *testing.T) {
+	withTestAdministrator(t)
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	resetMessageGuards(t)
+
+	previousSleep := automaticReplySleep
+	sleepCalls := 0
+	automaticReplySleep = func(time.Duration) { sleepCalls++ }
+	t.Cleanup(func() { automaticReplySleep = previousSleep })
+
+	Handle(context.Background(), &platform.Message{
+		ID:     "status-without-delay-1",
+		Chat:   platform.Chat{ID: "123", Kind: "group"},
+		Sender: platform.User{ID: testAdministratorQQ, DisplayName: "Keigo"},
+		Text:   "//status",
+	})
+
+	if sleepCalls != 0 {
+		t.Fatalf("direct command delayed %d times, want none", sleepCalls)
+	}
+}
+
 func TestExpandedYesNoHandlersSendWithoutQuote(t *testing.T) {
 	for _, test := range []struct {
 		name    string

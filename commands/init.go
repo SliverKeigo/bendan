@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -14,6 +15,11 @@ var startedAt = time.Now()
 
 const automaticReplyCooldown = 5 * time.Second
 const messageDeduplicationWindow = 10 * time.Minute
+
+var automaticReplySleep = time.Sleep
+var automaticReplyDelay = func() time.Duration {
+	return 500*time.Millisecond + time.Duration(rand.Intn(701))*time.Millisecond
+}
 
 type automaticReplyContextKey struct{}
 type automaticReplyMessageContextKey struct{}
@@ -114,6 +120,16 @@ func canSend(ctx context.Context, chat platform.Chat, sender platform.User) bool
 	return true
 }
 
+func prepareSend(ctx context.Context, chat platform.Chat, sender platform.User) bool {
+	if !canSend(ctx, chat, sender) {
+		return false
+	}
+	if ctx.Value(automaticReplyContextKey{}) != nil {
+		automaticReplySleep(automaticReplyDelay())
+	}
+	return true
+}
+
 func resetMessageGuards(t interface{ Cleanup(func()) }) {
 	messageGuards.Lock()
 	previousAutomaticReplies := messageGuards.automaticReplies
@@ -130,7 +146,7 @@ func resetMessageGuards(t interface{ Cleanup(func()) }) {
 }
 
 func sendText(ctx context.Context, chat platform.Chat, text string) *platform.Message {
-	if message, automatic := ctx.Value(automaticReplyMessageContextKey{}).(*platform.Message); automatic && !canSend(ctx, chat, message.Sender) {
+	if message, automatic := ctx.Value(automaticReplyMessageContextKey{}).(*platform.Message); automatic && !prepareSend(ctx, chat, message.Sender) {
 		return nil
 	}
 	message, err := Bot.SendText(ctx, chat, text)
@@ -151,7 +167,7 @@ func replyText(ctx context.Context, message *platform.Message, text string) *pla
 		chat = automaticMessage.Chat
 		sender = automaticMessage.Sender
 	}
-	if !canSend(ctx, chat, sender) {
+	if !prepareSend(ctx, chat, sender) {
 		return nil
 	}
 	sent, err := Bot.ReplyText(ctx, message, text)
