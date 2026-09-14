@@ -5,6 +5,7 @@
 dist
 
 actions.json
+/doc/
 node_modules/
 /.vitepress/
 docs/.vitepress/cache/
