@@ -19,34 +19,6 @@ func yesSel(options [2][]string, token *yes.Token) string {
 	return selected[rand.Intn(len(selected))]
 }
 
-func YesChoice(ctx context.Context, message *platform.Message) bool {
-	token := yes.ChoiceTokenize(message.Text)
-	if token == nil {
-		return false
-	}
-
-	choice := token.Obj
-	if yes.StableChoice(token) == 1 {
-		choice = token.Ind
-	}
-	templates := []string{
-		"{choice}",
-		"{choice}！",
-		"我选{choice}",
-		"还是{choice}吧",
-		"肯定是{choice}",
-		"{left}和{right}我都要",
-	}
-	text := templates[rand.Intn(len(templates))]
-	text = strings.NewReplacer(
-		"{left}", token.Obj,
-		"{right}", token.Ind,
-		"{choice}", choice,
-	).Replace(text)
-	sendText(ctx, message.Chat, text)
-	return true
-}
-
 func YesRight(ctx context.Context, message *platform.Message) bool {
 	token := yes.RightTokenize(message.Text)
 	if token == nil {

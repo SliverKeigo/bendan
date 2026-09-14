@@ -34,7 +34,7 @@ func TestHandleRecordsSuccessfulAutomaticReply(t *testing.T) {
 		ID:     "message-1",
 		Chat:   platform.Chat{ID: "group-1", Kind: "group"},
 		Sender: platform.User{ID: "user-1"},
-		Text:   "猫还是狗",
+		Text:   "能不能吃饭？",
 	}
 	Handle(context.Background(), message)
 
@@ -42,7 +42,7 @@ func TestHandleRecordsSuccessfulAutomaticReply(t *testing.T) {
 		t.Fatalf("recorded events = %d, want 1", len(recorder.events))
 	}
 	event := recorder.events[0]
-	if event.Handler != "yes_choice" || event.InputText != "猫还是狗" || event.ReplyText == "" {
+	if event.Handler != "yes_can" || event.InputText != "能不能吃饭？" || event.ReplyText == "" {
 		t.Fatalf("unexpected event: %#v", event)
 	}
 	if event.Delivery != "send" {

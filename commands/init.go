@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +60,6 @@ var directHandlers = []namedHandler{
 
 var automaticHandlers = []namedHandler{
 	{name: "mark", handle: Mark},
-	{name: "yes_choice", handle: YesChoice},
 	{name: "yes_right", handle: YesRight},
 	{name: "yes_is", handle: YesIs},
 	{name: "yes_can", handle: YesCan},
@@ -80,6 +80,9 @@ func Handle(ctx context.Context, message *platform.Message) {
 
 	ctx = context.WithValue(ctx, automaticReplyContextKey{}, true)
 	ctx = context.WithValue(ctx, automaticReplyMessageContextKey{}, message)
+	if strings.Contains(message.Text, "还是") {
+		return
+	}
 	for _, handler := range automaticHandlers {
 		handlerCtx := context.WithValue(ctx, automaticReplyHandlerContextKey{}, handler.name)
 		if handler.handle(handlerCtx, message) {

@@ -57,66 +57,30 @@ func TestMarkReplyIsValidUTF8(t *testing.T) {
 	}
 }
 
-func TestYesChoiceUsesParsedPlaceholders(t *testing.T) {
-	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
-	withTestBot(t, bot)
+func TestHandleChoiceQuestionsAreIgnored(t *testing.T) {
+	for _, text := range []string{
+		"猫还是狗？",
+		"是猫还是狗？",
+		"上面还是中间还是下面",
+	} {
+		t.Run(text, func(t *testing.T) {
+			bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+			withTestBot(t, bot)
+			resetMessageGuards(t)
 
-	message := &platform.Message{
-		Chat:   platform.Chat{ID: "123", Kind: "group"},
-		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
-		Text:   "猫还是狗？",
-	}
-	for i := 0; i < 100; i++ {
-		bot.mu.Lock()
-		bot.sent = nil
-		bot.mu.Unlock()
+			Handle(context.Background(), &platform.Message{
+				ID:     "choice-disabled-1",
+				Chat:   platform.Chat{ID: "123", Kind: "group"},
+				Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+				Text:   text,
+			})
 
-		if !YesChoice(context.Background(), message) {
-			t.Fatal("YesChoice returned false for a choice question")
-		}
-
-		bot.mu.Lock()
-		if len(bot.replied) != 0 {
-			bot.mu.Unlock()
-			t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
-		}
-		if len(bot.sent) != 1 {
-			bot.mu.Unlock()
-			t.Fatalf("sent = %#v, want exactly one direct message", bot.sent)
-		}
-		reply := bot.sent[0]
-		bot.mu.Unlock()
-		if strings.Contains(reply, "{left}") || strings.Contains(reply, "{right}") || strings.Contains(reply, "{choice}") {
-			t.Fatalf("reply %q contains an unresolved placeholder", reply)
-		}
-		if !strings.Contains(reply, "猫") && !strings.Contains(reply, "狗") {
-			t.Fatalf("reply %q contains neither parsed choice", reply)
-		}
-	}
-}
-
-func TestHandleChoiceQuestionSendsWithoutQuote(t *testing.T) {
-	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
-	withTestBot(t, bot)
-	resetMessageGuards(t)
-
-	Handle(context.Background(), &platform.Message{
-		ID:     "choice-1",
-		Chat:   platform.Chat{ID: "123", Kind: "group"},
-		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
-		Text:   "猫还是狗？",
-	})
-
-	bot.mu.Lock()
-	defer bot.mu.Unlock()
-	if len(bot.replied) != 0 {
-		t.Fatalf("replied = %#v, want no quoted reply", bot.replied)
-	}
-	if len(bot.sent) != 1 {
-		t.Fatalf("sent = %#v, want exactly one direct choice message", bot.sent)
-	}
-	if !strings.Contains(bot.sent[0], "猫") && !strings.Contains(bot.sent[0], "狗") {
-		t.Fatalf("message %q contains neither parsed choice", bot.sent[0])
+			bot.mu.Lock()
+			defer bot.mu.Unlock()
+			if len(bot.replied) != 0 || len(bot.sent) != 0 {
+				t.Fatalf("choice question produced replied=%#v sent=%#v, want no response", bot.replied, bot.sent)
+			}
+		})
 	}
 }
 
@@ -132,10 +96,10 @@ func TestAutomaticReplyDelayDisabledByDefault(t *testing.T) {
 	t.Cleanup(func() { automaticReplySleep = previousSleep })
 
 	Handle(context.Background(), &platform.Message{
-		ID:     "no-delay-choice-1",
+		ID:     "no-delay-question-1",
 		Chat:   platform.Chat{ID: "123", Kind: "group"},
 		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
-		Text:   "猫还是狗？",
+		Text:   "能不能吃饭？",
 	})
 
 	if sleepCalls != 0 {
@@ -160,10 +124,10 @@ func TestAutomaticReplyDelayRange(t *testing.T) {
 	})
 
 	Handle(context.Background(), &platform.Message{
-		ID:     "delayed-choice-1",
+		ID:     "delayed-question-1",
 		Chat:   platform.Chat{ID: "123", Kind: "group"},
 		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
-		Text:   "猫还是狗？",
+		Text:   "能不能吃饭？",
 	})
 
 	if slept != 850*time.Millisecond {
