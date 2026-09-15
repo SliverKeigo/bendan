@@ -184,6 +184,23 @@ func (c *Client) resolveMentions(ctx context.Context, message *platform.Message)
 	return nil
 }
 
+func normalizeGetMessageEvent(event *Event, chat platform.Chat) {
+	if event == nil {
+		return
+	}
+	if event.PostType == "" {
+		event.PostType = "message"
+	}
+	if event.MessageType == "" {
+		event.MessageType = chat.Kind
+	}
+	if event.GroupID == 0 && chat.Kind == "group" {
+		if groupID, err := strconv.ParseInt(chat.ID, 10, 64); err == nil {
+			event.GroupID = groupID
+		}
+	}
+}
+
 func (c *Client) resolveReply(ctx context.Context, message *platform.Message) error {
 	if message == nil || message.ReplyTo == nil || message.ReplyTo.ID == "" || message.ReplyTo.Sender.ID != "" {
 		return nil
@@ -200,15 +217,7 @@ func (c *Client) resolveReply(ctx context.Context, message *platform.Message) er
 	if err := json.Unmarshal(data, &replied); err != nil {
 		return fmt.Errorf("decode get_msg response: %w", err)
 	}
-	if replied.MessageType == "" {
-		replied.PostType = "message"
-		replied.MessageType = message.Chat.Kind
-	}
-	if replied.GroupID == 0 && message.Chat.Kind == "group" {
-		if groupID, parseErr := strconv.ParseInt(message.Chat.ID, 10, 64); parseErr == nil {
-			replied.GroupID = groupID
-		}
-	}
+	normalizeGetMessageEvent(&replied, message.Chat)
 	resolved := replied.ToPlatformMessage()
 	if resolved == nil {
 		return fmt.Errorf("get_msg returned a non-message event")

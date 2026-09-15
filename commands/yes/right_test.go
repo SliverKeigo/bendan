@@ -13,6 +13,7 @@ func TestRightTokenize(t *testing.T) {
 		{"XX行不行呢", "sub=XX"},
 		{"应该是吧", "sub="},
 		{"和之前一样是吧", "sub=和之前一样"},
+		{"前面是说明。和之前一样是吧", "sub=和之前一样"},
 	}
 
 	for _, d := range data {

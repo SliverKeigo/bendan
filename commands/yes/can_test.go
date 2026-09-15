@@ -17,6 +17,7 @@ func TestCanTokenize(t *testing.T) {
 		{"可不可以吃饭？", "sub=, obj=吃饭"},
 		{"这样行不行", "sub=这样"},
 		{"今天去好不好？", "sub=今天去"},
+		{"前面是说明。它会不会消失", "sub=它, obj=消失"},
 	}
 
 	for _, d := range data {

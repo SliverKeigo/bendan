@@ -9,7 +9,8 @@ import (
 var reAOrB = regexp.MustCompile(fmt.Sprintf(`\s*(.*?)\s*([是有])\s*(.+?)\s*%s*还是\s*(.+?)(?:%s+|$)`, marks, marks))
 var reYesOrNo = regexp.MustCompile(fmt.Sprintf(`\s*(.*?)\s*(是不是|是否|有没有|有木有|有无|要不要|该不该|值不值得)\s*(.*?)(?:%s+|$)`, marks))
 var reHaveSo = regexp.MustCompile(fmt.Sprintf(`\s*(.*?)\s*(这么|那么|多么)\s*有\s*(.*?)(?:%s+|$)`, marks))
-var reYes = regexp.MustCompile(fmt.Sprintf(`\s*(.*?)\s*([是有])\s*(.+?)\s*%s*[吗嘛吧罢?？]+`, marks))
+var reYes = regexp.MustCompile(fmt.Sprintf(`\s*(.*?)\s*([是有])\s*(.+?)\s*%s*[吗嘛吧罢?？]+\s*$`, marks))
+var reOpenQuestion = regexp.MustCompile(`^(谁|怎么|怎样|为什么|为何|哪里|哪儿|何处|何时|什么时候)`)
 
 func typeOfIs(i int, s string) uint8 {
 	var typ uint8 = TypUnknown
@@ -59,7 +60,8 @@ func matchOfIs(s string) *Token {
 		}
 
 		ms = reYes.FindStringSubmatch(ps[i])
-		if ms != nil && !reDeterminer.MatchString(ms[1]) && !reDeterminer.MatchString(ms[3]) {
+		openQuestion := ms != nil && reOpenQuestion.MatchString(ms[3]) && !strings.ContainsAny(ps[i], "吗嘛")
+		if ms != nil && !openQuestion && !reDeterminer.MatchString(ms[1]) && !reDeterminer.MatchString(ms[3]) {
 			return &Token{Typ: typeOfIs(2, ms[2]), Sub: ms[1], Obj: ms[3], Word: ms[2]}
 		}
 	}

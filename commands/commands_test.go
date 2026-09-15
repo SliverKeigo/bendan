@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -294,6 +295,40 @@ func TestHushTriggersWhenReplyingToOrMentioningBot(t *testing.T) {
 				t.Fatalf("chat %q was not hushed", message.Chat.ID)
 			}
 		})
+	}
+}
+
+func TestHushClearsWhenReplyingToBotWithSpeak(t *testing.T) {
+	bot := &recordingBot{identity: platform.User{ID: "99", DisplayName: "Bendan"}}
+	withTestBot(t, bot)
+	previousDir := hushDir
+	hushDir = t.TempDir()
+	t.Cleanup(func() { hushDir = previousDir })
+
+	chat := platform.Chat{ID: "123", Kind: "group"}
+	if err := os.WriteFile(filepath.Join(hushDir, chat.ID), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	message := &platform.Message{
+		ID:     "message-1",
+		Chat:   chat,
+		Sender: platform.User{ID: "1", DisplayName: "Keigo"},
+		Text:   "说话",
+		ReplyTo: &platform.Message{
+			ID:     "bot-message",
+			Chat:   chat,
+			Sender: bot.identity,
+		},
+	}
+
+	if !Hush(context.Background(), message) {
+		t.Fatal("Hush returned false for an unhush request replying to the bot")
+	}
+	if _, hushed := hushUntil(chat.ID); hushed {
+		t.Fatal("chat remains hushed after replying to the bot with 说话")
+	}
+	if len(bot.replied) != 1 || !strings.Contains(bot.replied[0], "好耶") {
+		t.Fatalf("replied = %#v, want unhush confirmation", bot.replied)
 	}
 }
 

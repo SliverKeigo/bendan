@@ -12,12 +12,12 @@ var reRight2 = regexp.MustCompile(`\s*(.*?)\s*((?:应该|我猜|其实|确实|�
 func matchOfRight(s string) *Token {
 	ps := explode(s)
 	for i := len(ps) - 1; i >= 0; i-- {
-		ms := reRight1.FindStringSubmatch(s)
+		ms := reRight1.FindStringSubmatch(ps[i])
 		if ms != nil {
 			return &Token{Typ: TypRight, Sub: ms[1], Word: ms[2]}
 		}
 
-		ms = reRight2.FindStringSubmatch(s)
+		ms = reRight2.FindStringSubmatch(ps[i])
 		if ms == nil {
 			continue
 		} else if strings.HasSuffix(ms[2], "是") || strings.HasSuffix(ms[2], "有") {

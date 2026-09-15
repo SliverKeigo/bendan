@@ -11,12 +11,12 @@ var reCan2 = regexp.MustCompile(`\s*(.*?)\s*([能会][吗嘛吧罢])\s*[.?。？
 func CanTokenize(s string) *Token {
 	ps := explode(s)
 	for i := len(ps) - 1; i >= 0; i-- {
-		ms := reCan1.FindStringSubmatch(s)
+		ms := reCan1.FindStringSubmatch(ps[i])
 		if ms != nil {
 			return &Token{Typ: TypCan, Sub: ms[1], Obj: ms[3], Word: ms[2]}
 		}
 
-		ms = reCan2.FindStringSubmatch(s)
+		ms = reCan2.FindStringSubmatch(ps[i])
 		if ms != nil {
 			return &Token{Typ: TypCan, Sub: ms[1], Word: ms[2]}
 		}

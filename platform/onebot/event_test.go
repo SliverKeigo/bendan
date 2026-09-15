@@ -3,6 +3,8 @@ package onebot
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/sxyazi/bendan/platform"
 )
 
 func TestEventToPlatformMessage(t *testing.T) {
@@ -31,6 +33,28 @@ func TestEventToPlatformMessage(t *testing.T) {
 	}
 	if message.Sender.DisplayName != "Keigo" || message.Text != "/me 喝茶" {
 		t.Fatalf("unexpected message content: %#v", message)
+	}
+}
+
+func TestGetMessageResponseWithoutPostTypeConvertsToMessage(t *testing.T) {
+	var event Event
+	if err := json.Unmarshal([]byte(`{
+		"message_id":123,
+		"message_type":"group",
+		"group_id":891343531,
+		"sender":{"user_id":422345383,"nickname":"Bendan"},
+		"message":[{"type":"text","data":{"text":"应该不是"}}]
+	}`), &event); err != nil {
+		t.Fatal(err)
+	}
+
+	normalizeGetMessageEvent(&event, platform.Chat{ID: "891343531", Kind: "group"})
+	message := event.ToPlatformMessage()
+	if message == nil {
+		t.Fatal("expected get_msg response without post_type to convert to a platform message")
+	}
+	if got, want := message.Sender.ID, "422345383"; got != want {
+		t.Fatalf("sender ID = %q, want %q from nested sender", got, want)
 	}
 }
 
